@@ -70,7 +70,8 @@
   .sw.me{width:12px;height:12px;margin:0 4px;border-radius:50%;background:#1da1f2;border:2px solid #fff;box-shadow:0 0 0 1px #0003}
   .sw.strip{width:20px;height:7px;background:linear-gradient(90deg,#ffd75e,#c8cbd2)}
   .zoomin{margin:4px 16px 12px}
-  .skycheck{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:0 0 4px}
+  .skycheck{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:4px;flex-wrap:wrap;padding:8px 16px;border-bottom:1px solid var(--line);order:2}
+  .panel header{order:1} #list{order:3} .legend{order:4}
   .skycheck button{font:inherit;font-size:15px;line-height:1;border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 7px;cursor:pointer}
   .skycheck button:hover{background:#f6efe1}
   .skycheck button[data-sky=""]{font-size:12.5px;border:0;background:none;color:#c2410c;text-decoration:underline;padding:0}
@@ -105,6 +106,15 @@
   @media (max-width:700px){
     .panel{top:auto;bottom:112px;left:8px;right:8px;width:auto;max-height:calc(100% - 130px);border-radius:16px 16px 12px 12px}
     .panel:not(.expanded) .more{display:none}
+    /* phones: search + filters as an always-visible bar at the top of the screen */
+    .searchbox{position:fixed;z-index:4;top:8px;left:8px;right:8px;padding:8px;background:#fffdf8f5;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 22px #0002}
+    .searchbox .searchrow{margin-top:0}
+    .searchbox .chips{margin-top:6px;flex-wrap:nowrap;overflow-x:auto}
+    .searchbox .chip{white-space:nowrap}
+    .maplibregl-ctrl-top-right{top:104px !important}
+    /* phones: "Sky right now?" at the bottom of the sheet, just above the time bar */
+    .skycheck{order:9;border-bottom:0;border-top:1px solid var(--line);padding:7px 12px}
+    .panel{max-height:calc(100% - 230px)}
     .panel:not(.expanded) #count{display:none}
     .panel header{padding:10px 12px 8px}
     h1{font-size:17px}
@@ -118,7 +128,6 @@
     .ticks{display:none}
     .sun-info{order:3;flex-basis:100%}
     .maplibregl-popup-content{max-height:42vh}
-    .maplibregl-ctrl-top-right{top:0}
   }
 </style>
 </head>
@@ -132,8 +141,7 @@
     </div>
     <div class="sub">Antwerp · today <span id="ohnote"></span></div>
     <div id="best"></div>
-    <div id="skycheck" class="skycheck" aria-live="polite"></div>
-    <div class="more">
+    <div class="searchbox">
       <div class="searchrow">
         <input id="search" type="search" placeholder="Search a café or coffee bar…" autocomplete="off" aria-label="Search a café or coffee bar">
         <button id="nearme" class="btn" title="Use my location">📍 Near me</button>
@@ -146,6 +154,7 @@
     </div>
     <div id="count">Loading the map…</div>
   </header>
+  <div id="skycheck" class="skycheck" aria-live="polite"></div>
   <div id="list" class="more"></div>
   <details class="legend more">
     <summary>Map legend</summary>
