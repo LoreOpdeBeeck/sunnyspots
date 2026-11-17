@@ -625,16 +625,38 @@ buildDay(); S.idx = pickDefaultIdx(); $('#slider').value = S.idx;
 const DAYN = { Mo:0, Tu:1, We:2, Th:3, Fr:4, Sa:5, Su:6 };
 function parseOH(str){
   if (!str) return null;
+  if (String(str).includes('||')){
+    const parts = String(str).split('||').map(parseOH1).filter(Boolean);
+    if (!parts.length) return null;
+    return parts.reduce((acc, d) => acc.map((iv, i) => iv.concat(d[i])));
+  }
+  return parseOH1(str);
+}
+function parseOH1(str){
+  if (!str) return null;
   str = String(str).trim();
   if (/^24\/7$/.test(str)) return Array.from({ length:7 }, () => [[0, 1440]]);
-  str = str.replace(/"[^"]*"/g, '')
-           .replace(/(\d|off|closed),\s*(?=(?:Mo|Tu|We|Th|Fr|Sa|Su|PH)\b)/g, '$1;'); // "Mo-Fr 9:00-17:00, Sa 10:00-14:00"
+  str = str.replace(/"[^"]*"/g, '').replace(/\bopen\b/g, '')
+           .replace(/(\d|\+|off|closed),\s*(?=(?:Mo|Tu|We|Th|Fr|Sa|Su|PH)\b)/g, '$1;'); // "Mo-Fr 9:00-17:00, Sa 10:00-14:00"
   const days = Array.from({ length:7 }, () => []);
   let any = false;
-  for (let rule of str.split(/\s*(?:;|\|\|)\s*/)){
+  for (let rule of str.split(/\s*;\s*/)){
     rule = rule.trim(); if (!rule) continue;
     if (/^(PH|SH)\b/.test(rule)) continue;                                   // public/school holidays: ignore
-    if (/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|week|easter)\b/i.test(rule)) continue; // seasonal rules: ignore
+    // seasonal rules ("Jan-Nov Mo-Sa 10:00-18:00"): keep only those that cover the current month
+    const mm = rule.match(/^((?:(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?:-(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec))?\s*,?\s*)+)\s+(.*)$/);
+    if (mm){
+      const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], cur = +todayStr().slice(5, 7) - 1;
+      let hit = false;
+      for (const tok of mm[1].split(',').map(t => t.trim()).filter(Boolean)){
+        const [a, b] = tok.split('-').map(m => MON.indexOf(m));
+        if (b == null || b < 0 ? cur === a : (a <= b ? cur >= a && cur <= b : cur >= a || cur <= b)) hit = true;
+      }
+      if (!hit) continue;
+      rule = mm[2].trim();
+    }
+    if (/^(PH|SH)\b/.test(rule)) continue;
+    if (/\b(week|easter|sunrise|sunset|dawn|dusk)\b/i.test(rule)) continue; // rules we can't evaluate
     const m = rule.match(/^((?:(?:Mo|Tu|We|Th|Fr|Sa|Su|PH)(?:-(?:Mo|Tu|We|Th|Fr|Sa|Su))?(?:\[[^\]]*\])?\s*,?\s*)+)?(.*)$/);
     const dayPart = (m[1] || '').trim(), timePart = (m[2] || '').trim();
     let ds = [];
@@ -651,7 +673,7 @@ function parseOH(str){
     const iv = [];
     for (const t of timePart.split(/\s*,\s*/)){
       const a = t.match(/^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})\+?$/), b = t.match(/^(\d{1,2}):(\d{2})\+$/);
-      if (a){ const s = +a[1]*60 + +a[2]; let e = +a[3]*60 + +a[4]; if (e <= s) e += 1440; iv.push([s, e]); }
+      if (a){ const s = +a[1]*60 + +a[2]; let e = +a[3]*60 + +a[4]; if (e <= s) e += 1440; if (/\+$/.test(t)) e += 120; iv.push([s, e]); }
       else if (b){ const s = +b[1]*60 + +b[2]; iv.push([s, s + 240]); }       // "18:00+" = open end, assume 4 h
       else return null;                                                       // format we don't understand
     }
