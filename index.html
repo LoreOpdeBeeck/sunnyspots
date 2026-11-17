@@ -172,7 +172,8 @@
   .clouds{height:6px;border-radius:3px;background:var(--sand);display:block}
   .past{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:3px 0 0 3px;pointer-events:none;background:repeating-linear-gradient(135deg,#fffcf7cc 0 3px,#0000 3px 6px)}
   .ticks{display:flex;justify-content:space-between;font-size:12px;color:var(--faint);margin-top:4px;font-variant-numeric:tabular-nums}
-  #loading{font-size:12px;color:var(--faint);margin-left:auto}
+  #loading{position:absolute;right:16px;top:-26px;font-size:12px;color:var(--muted);background:var(--base);border-radius:10px;padding:3px 10px;box-shadow:var(--float);pointer-events:none}
+  #loading:empty{display:none}
   .btn{font:inherit;font-size:14px;border:1px solid var(--line);background:#fff;border-radius:18px;height:36px;padding:0 14px;cursor:pointer;color:var(--ink)}
 
   /* ---------- map popup ---------- */
@@ -278,6 +279,7 @@
     #slider{margin-top:4px;height:28px}
     .ticks{display:none}
     .maplibregl-popup-content{max-height:42vh}
+    #loading{display:none}                                        /* the sheet shows its own loading placeholders */
   }
 </style>
 </head>
