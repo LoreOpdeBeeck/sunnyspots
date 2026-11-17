@@ -21,17 +21,20 @@ const query = `[out:json][timeout:60];nwr["amenity"~"^(cafe|bar|pub|biergarten)$
 
 async function fetchOverpass() {
   let last;
-  for (const url of SERVERS) {
+  // two rounds over all servers; wait a bit before the second round (busy servers often recover quickly)
+  for (const [round, url] of [...SERVERS.map(u => [1, u]), ...SERVERS.map(u => [2, u])]) {
+    if (round === 2 && url === SERVERS[0]) { console.log('All servers busy, retrying in 45 s…'); await new Promise(r => setTimeout(r, 45_000)); }
+    console.log(`Round ${round}: ${url}`);
     try {
       const res = await fetch(url, {
         method: 'POST',
         body: 'data=' + encodeURIComponent(query),
         headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': `sunny-cafes-antwerp/1.0 (${CONTACT})` },
-        signal: AbortSignal.timeout(90_000)
+        signal: AbortSignal.timeout(75_000)
       });
-      if (!res.ok) { last = new Error(`${url} → HTTP ${res.status}`); continue; }
+      if (!res.ok) { last = new Error(`${url} → HTTP ${res.status}`); console.log('  ' + last.message); continue; }
       return await res.json();
-    } catch (e) { last = e; }
+    } catch (e) { last = e; console.log('  ' + (e.name === 'TimeoutError' ? 'timed out' : e.message)); }
   }
   throw last;
 }
