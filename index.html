@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sunny cafés and coffee bars · Antwerp</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>window.maplibregl || document.write('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css"><script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"><\/script>');</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#1f2430; --muted:#6b6f7a; --line:#e9e1d1; --sun:#ffb300; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:Inter,system-ui,sans-serif;color:var(--ink);overflow:hidden}
+  #map{position:absolute;inset:0;background:#eae6dc}
+  .panel{position:absolute;z-index:3;top:14px;left:14px;width:320px;max-height:calc(100% - 150px);display:flex;flex-direction:column;
+    background:#fffdf8f2;border:1px solid var(--line);border-radius:16px;box-shadow:0 10px 34px #0002;overflow:hidden}
+  .panel header{padding:14px 16px 10px;border-bottom:1px solid var(--line)}
+  h1{font-family:Fraunces,serif;font-size:21px;margin:0;display:flex;gap:8px;align-items:center}
+  h1 .dot{width:16px;height:16px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ffd75e,var(--sun));box-shadow:0 0 0 4px #ffd75e55}
+  #count{font-size:13px;color:var(--muted);margin-top:8px}
+  .sub{font-size:12.5px;color:var(--muted);margin:2px 0 10px}
+  #ohnote{color:#c2410c}
+  #search{width:100%;font:inherit;font-size:14px;padding:8px 11px;border:1px solid var(--line);border-radius:10px;background:#fff;outline:none}
+  #search:focus{border-color:var(--sun);box-shadow:0 0 0 3px #ffd75e55}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .chip{font:inherit;font-size:12.5px;padding:5px 10px;border-radius:99px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer}
+  .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .cafe .u.sun::before{content:"☀ ";color:var(--sun)}
+  .cafe .u.closed{color:#b45309}
+  .cafe .u.dim{color:var(--muted)}
+  .cafe.is-closed .n{color:var(--muted)}
+  .maplibregl-popup-content .kind{font-size:12px;color:var(--muted)}
+  .oh{font-size:12.5px;margin:2px 0 4px;color:var(--muted)}
+  .oh.open{color:#2f7d32;font-weight:600}
+  .oh.closed{color:#b45309;font-weight:600}
+  #count b{color:var(--ink)}
+  #list{overflow:auto;padding:6px}
+  .cafe{display:flex;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:10px;cursor:pointer;font-size:14px}
+  .cafe:hover{background:#f6efe1}
+  .cafe .n{font-weight:500}
+  .cafe .u{color:var(--muted);font-size:12.5px;white-space:nowrap}
+  .hint{padding:14px 16px;color:var(--muted);font-size:13.5px;line-height:1.45}
+  .timebar{position:absolute;z-index:3;left:50%;transform:translateX(-50%);bottom:22px;width:min(720px,calc(100% - 28px));
+    background:#fffdf8f2;border:1px solid var(--line);border-radius:16px;box-shadow:0 10px 34px #0002;padding:10px 14px 12px}
+  .tb-top{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  .clock{font-family:Fraunces,serif;font-size:26px;font-variant-numeric:tabular-nums;min-width:86px}
+  .sun-info{font-size:12.5px;color:var(--muted);flex:1}
+  .clouds{height:7px;border-radius:4px;margin-top:5px;background:#eee;display:none}
+  .clouds.on{display:block}
+  .wx{white-space:nowrap}
+  .btn{font:inherit;font-size:13px;border:1px solid var(--line);background:#fff;border-radius:8px;height:32px;padding:0 10px;cursor:pointer}
+  .btn:hover{background:#f6efe1}
+  #play{width:36px;padding:0}
+  #slider{width:100%;margin:0;accent-color:var(--sun)}
+  .ticks{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
+  #loading{font-size:11.5px;color:var(--muted);margin-left:auto}
+  .maplibregl-popup-content{font-family:Inter,sans-serif;font-size:13px;line-height:1.45;border-radius:12px;padding:12px 14px}
+  .maplibregl-popup-content h3{font-family:Fraunces,serif;font-size:17px;margin:0 0 4px}
+  .now-sun{color:#a86a00;font-weight:600}
+  .now-shade{color:#55607a;font-weight:600}
+  .maplibregl-popup-content ul{margin:6px 0;padding-left:18px}
+  .maplibregl-popup-content a{color:#c2410c}
+  .err{position:absolute;inset:0;display:grid;place-items:center;z-index:9;background:#fbf7ef;padding:30px;text-align:center;font-size:15px;color:#c2410c}
+  .titlebar{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .sheet-btn{display:none;font:inherit;border:1px solid var(--line);background:#fff;border-radius:99px;width:34px;height:34px;cursor:pointer;flex:none}
+  .searchrow{display:flex;gap:6px}
+  .searchrow .btn{height:auto;white-space:nowrap}
+  #nearme.on{background:#e8f1ff;border-color:#9cc0ff}
+  #best .best{margin:0 0 6px;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,#fff4cc,#ffe08a);border:1px solid #f3cf63;cursor:pointer}
+  #best .best:focus{outline:3px solid #ffd75e}
+  #best .best.muted{background:#f4f1ea;border-color:var(--line);color:var(--muted);font-size:13px;cursor:default}
+  #best .best.muted[data-id]{cursor:pointer}
+  .best-k{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:#8a5a00;font-weight:600}
+  .best-n{font-family:Fraunces,serif;font-size:18px;margin:2px 0}
+  .best-d{font-size:13px;color:#5a3d00}
+  .more .chips{margin-bottom:2px}
+  .searchrow{margin-top:8px}
+  .fine{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.35}
+  @media (max-width:700px){
+    .panel{top:auto;bottom:112px;left:8px;right:8px;width:auto;max-height:calc(100% - 130px);border-radius:16px 16px 12px 12px}
+    .panel:not(.expanded) .more{display:none}
+    .panel:not(.expanded) #count{display:none}
+    .panel header{padding:10px 12px 8px}
+    h1{font-size:17px}
+    .sub{margin-bottom:6px}
+    .sheet-btn{display:block}
+    .timebar{bottom:8px;padding:8px 10px 8px;width:calc(100% - 16px)}
+    .tb-top{gap:8px;margin-bottom:4px;flex-wrap:wrap}
+    #play{display:none}
+    .clock{font-size:21px;min-width:58px}
+    .sun-info{font-size:11.5px}
+    .ticks{display:none}
+    .maplibregl-ctrl-top-right{top:0}
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="panel">
+  <header>
+    <div class="titlebar">
+      <h1><span class="dot"></span>Sunny cafés and coffee bars</h1>
+      <button id="sheet" class="sheet-btn" aria-expanded="true" aria-label="Show or hide the list">▼</button>
+    </div>
+    <div class="sub">Antwerp · today <span id="ohnote"></span></div>
+    <div id="best"></div>
+    <div class="more">
+      <div class="searchrow">
+        <input id="search" type="search" placeholder="Search a café or coffee bar…" autocomplete="off" aria-label="Search a café or coffee bar">
+        <button id="nearme" class="btn" title="Use my location">📍 Near me</button>
+      </div>
+      <div class="chips" role="group" aria-label="Filters">
+        <button class="chip on" data-f="coffee" aria-pressed="true">☕ Coffee bars</button>
+        <button class="chip on" data-f="cafe" aria-pressed="true">🍺 Cafés</button>
+        <button class="chip" data-f="terrace" aria-pressed="false">⛱ Terrace</button>
+        <button class="chip" data-f="openOnly" aria-pressed="false">Show only open</button>
+      </div>
+    </div>
+    <div id="count">Loading the map…</div>
+  </header>
+  <div id="list" class="more"></div>
+</div>
+<div class="timebar">
+  <div class="tb-top">
+    <button class="btn" id="play" title="Play the day">▶</button>
+    <div class="clock" id="clock">--:--</div>
+    <div class="sun-info" id="suninfo"></div>
+    <button class="btn" id="now">Now</button>
+  </div>
+  <input type="range" id="slider" min="0" max="143" value="72">
+  <div class="clouds" id="clouds" title="Chance of clear sky through the day"></div>
+  <div class="ticks" id="ticks"></div>
+</div>
+
+<!-- Background worker: downloads each map tile once, decodes buildings + cafés, prepares GPU buffers. -->
+<script id="worker-src" type="text/plain">
+try { importScripts('https://unpkg.com/earcut@2.2.4/dist/earcut.min.js'); }
+catch(e){ try { importScripts('https://cdn.jsdelivr.net/npm/earcut@2.2.4/dist/earcut.min.js'); } catch(e2){} }
+const DEFAULT_H = 11;
+let O = null;
+const td = new TextDecoder();
+
+function R(b){ this.b = b; this.p = 0; this.dv = new DataView(b.buffer, b.byteOffset, b.byteLength); }
+R.prototype.v = function(){ const b = this.b; let r = 0, s = 1, c; do { c = b[this.p++]; r += (c & 0x7f) * s; s *= 128; } while (c >= 0x80); return r; };
+R.prototype.skip = function(wt){ if (wt === 0) this.v(); else if (wt === 1) this.p += 8; else if (wt === 2) this.p += this.v(); else if (wt === 5) this.p += 4; else throw new Error('bad wire type'); };
+R.prototype.str = function(){ const l = this.v(); const s = td.decode(this.b.subarray(this.p, this.p + l)); this.p += l; return s; };
+R.prototype.packed = function(){ const l = this.v(), end = this.p + l, out = []; while (this.p < end) out.push(this.v()); return out; };
+const zz = n => (n >>> 1) ^ -(n & 1);
+
+function readValue(r, end){
+  let val = null;
+  while (r.p < end){
+    const t = r.v(), f = t >> 3, wt = t & 7;
+    if (f === 1) val = r.str();
+    else if (f === 2){ val = r.dv.getFloat32(r.p, true); r.p += 4; }
+    else if (f === 3){ val = r.dv.getFloat64(r.p, true); r.p += 8; }
+    else if (f === 4 || f === 5) val = r.v();
+    else if (f === 6) val = zz(r.v());
+    else if (f === 7) val = !!r.v();
+    else r.skip(wt);
+  }
+  return val;
+}
+function readLayer(r, end){
+  const L = { name:'', keys:[], values:[], extent:4096, feats:[] };
+  while (r.p < end){
+    const t = r.v(), f = t >> 3, wt = t & 7;
+    if (f === 1) L.name = r.str();
+    else if (f === 2){ const l = r.v(); L.feats.push([r.p, r.p + l]); r.p += l; }
+    else if (f === 3) L.keys.push(r.str());
+    else if (f === 4){ const l = r.v(); L.values.push(readValue(r, r.p + l)); }
+    else if (f === 5) L.extent = r.v();
+    else r.skip(wt);
+  }
+  return L;
+}
+function readFeature(r, [s, e], L){
+  r.p = s; let tags = [], type = 0, geom = [];
+  while (r.p < e){
+    const t = r.v(), f = t >> 3, wt = t & 7;
+    if (f === 2) tags = r.packed();
+    else if (f === 3) type = r.v();
+    else if (f === 4) geom = r.packed();
+    else r.skip(wt);
+  }
+  const props = {};
+  for (let i = 0; i < tags.length; i += 2) props[L.keys[tags[i]]] = L.values[tags[i+1]];
+  return { type, props, geom };
+}
+function decodeRings(g){
+  const rings = []; let x = 0, y = 0, i = 0, ring = null;
+  while (i < g.length){
+    const c = g[i++], id = c & 7, n = c >> 3;
+    if (id === 1 || id === 2){
+      for (let k = 0; k < n; k++){ x += zz(g[i++]); y += zz(g[i++]); if (id === 1){ ring = []; rings.push(ring); } ring.push(x, y); }
+    }
+  }
+  return rings;
+}
+function area(r){ let a = 0; for (let i = 0, n = r.length/2; i < n; i++){ const j = (i+1) % n; a += r[2*i]*r[2*j+1] - r[2*j]*r[2*i+1]; } return a; }
+function polygons(rings){
+  const polys = []; let ccw, cur = null;
+  for (const r of rings){
+    const a = area(r); if (a === 0) continue;
+    if (ccw === undefined) ccw = a < 0;
+    if (ccw === (a < 0)){ cur = [r]; polys.push(cur); } else if (cur) cur.push(r);
+  }
+  return polys;
+}
+
+function processTile(buf, z, tx, ty){
+  const r = new R(buf), layers = {};
+  while (r.p < buf.length){
+    const t = r.v(), f = t >> 3, wt = t & 7;
+    if (f === 3){ const l = r.v(), end = r.p + l; const L = readLayer(r, end); r.p = end; if (L.name === 'building' || L.name === 'poi') layers[L.name] = L; }
+    else r.skip(wt);
+  }
+  const n2 = Math.pow(2, z);
+  // GPU arrays (x east, y south, local metres) and CPU arrays (x east, y north)
+  const gv = [], gi = [], roofs = [];
+  const cc = [], ringStart = [], polyRing = [], polyH = [], polyBB = [];
+  const B = layers.building;
+  if (B){
+    const ext = B.extent;
+    for (const fr of B.feats){
+      const ft = readFeature(r, fr, B);
+      if (ft.type !== 3) continue;
+      const p = ft.props;
+      if (p.hide_3d === true || (+p.render_min_height || 0) > 3) continue;
+      let h = +p.render_height; if (!(h > 5)) h = DEFAULT_H;
+      for (const poly of polygons(decodeRings(ft.geom))){
+        // project rings
+        const lr = poly.map(ring => { const out = new Array(ring.length);
+          for (let i = 0; i < ring.length; i += 2){ out[i] = ((tx + ring[i]/ext)/n2 - O.ox)/O.mpu; out[i+1] = ((ty + ring[i+1]/ext)/n2 - O.oy)/O.mpu; }
+          return out; });
+        // GPU: base verts for all rings, then top verts
+        const base = gv.length/3; let total = 0; const starts = [];
+        for (const ring of lr){ starts.push(total); total += ring.length/2; }
+        for (const ring of lr) for (let i = 0; i < ring.length; i += 2) gv.push(ring[i], ring[i+1], 0);
+        for (const ring of lr) for (let i = 0; i < ring.length; i += 2) gv.push(ring[i], ring[i+1], h);
+        lr.forEach((ring, k) => {
+          const n = ring.length/2, s0 = base + starts[k];
+          for (let i = 0; i < n; i++){
+            const a = s0 + i, b = s0 + (i+1) % n, at = a + total, bt = b + total;
+            gi.push(a, b, bt, a, bt, at);
+          }
+        });
+        if (self.earcut){
+          const flat = [], holes = [];
+          lr.forEach((ring, k) => { if (k) holes.push(flat.length/2); for (const v of ring) flat.push(v); });
+          const tri = earcut(flat, holes.length ? holes : null, 2);
+          for (const t of tri) roofs.push(base + t);
+        }
+        // CPU
+        polyRing.push(ringStart.length);
+        let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+        for (const ring of lr){
+          ringStart.push(cc.length/2);
+          for (let i = 0; i < ring.length; i += 2){ const x = ring[i], y = -ring[i+1]; cc.push(x, y); if (x < x1) x1 = x; if (x > x2) x2 = x; if (y < y1) y1 = y; if (y > y2) y2 = y; }
+        }
+        polyH.push(h); polyBB.push(x1, y1, x2, y2);
+      }
+    }
+  }
+  ringStart.push(cc.length/2); polyRing.push(ringStart.length - 1);
+  const cafes = [];
+  const P = layers.poi;
+  if (P){
+    for (const fr of P.feats){
+      const ft = readFeature(r, fr, P);
+      const cls = ft.props.class;
+      if (ft.type !== 1 || !(cls === 'cafe' || cls === 'beer' || cls === 'bar' || /^(bar|pub|biergarten)$/.test(ft.props.subclass || ''))) continue;
+      const g = ft.geom; if (g.length < 3) continue;
+      const px = zz(g[1]), py = zz(g[2]);
+      if (px < 0 || py < 0 || px > P.extent || py > P.extent) continue; // skip buffer copies from neighbouring tiles
+      const mx = (tx + px/P.extent)/n2, my = (ty + py/P.extent)/n2;
+      cafes.push({ name: ft.props['name:latin'] || ft.props.name || '', sub: ft.props.subclass || '', cls,
+        lng: mx*360 - 180, lat: Math.atan(Math.sinh(Math.PI*(1 - 2*my)))*180/Math.PI,
+        x: (mx - O.ox)/O.mpu, y: -(my - O.oy)/O.mpu });
+    }
+  }
+  const idx = new Uint32Array(gi.length + roofs.length); idx.set(gi); idx.set(roofs, gi.length);
+  return { verts:new Float32Array(gv), idx, quadCount:gi.length, roofCount:roofs.length,
+    cc:new Float32Array(cc), ringStart:new Uint32Array(ringStart), polyRing:new Uint32Array(polyRing), polyH:new Float32Array(polyH), polyBB:new Float32Array(polyBB), cafes };
+}
+
+onmessage = async e => {
+  const m = e.data;
+  if (m.type === 'init'){ O = m; return; }
+  try {
+    const res = await fetch(m.url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const out = processTile(new Uint8Array(await res.arrayBuffer()), m.z, m.x, m.y);
+    postMessage({ type:'tile', key:m.key, ...out }, [out.verts.buffer, out.idx.buffer, out.cc.buffer, out.ringStart.buffer, out.polyRing.buffer, out.polyH.buffer, out.polyBB.buffer]);
+  } catch(err){ postMessage({ type:'tileerr', key:m.key, msg:String(err && err.message || err) }); }
+};
+</script>
+
+<script>
+"use strict";
+if (!window.maplibregl){
+  document.body.insertAdjacentHTML('beforeend','<div class="err">The map library could not load. Check your internet connection and open this page in a normal browser tab.</div>');
+  throw new Error('maplibre missing');
+}
+const $ = s => document.querySelector(s);
+window.addEventListener('error', e => { const el = document.getElementById('count'); if (el) el.innerHTML = '<span style="color:#c2410c">Something went wrong: ' + String(e.message).replace(/</g,'&lt;') + '</span>'; });
+window.addEventListener('unhandledrejection', e => console.warn('unhandled', e.reason));
+const RAD = Math.PI/180, TZ = 'Europe/Brussels';
+const STEP_MIN = 10, EYE = 1.2, MIN_ALT = 2, NEAR_R = 170, TZOOM = 14;
+const ANTWERP = { center:[4.4025, 51.2194], bounds:[[4.25, 51.14], [4.55, 51.33]] };
+const NOT_COFFEE = /(\bijs|ijssalon|gelat|ice ?cream|glace|frozen yog|softijs)/i;
+
+/* ---------- time (always Antwerp time) ---------- */
+function tzOffsetMs(utcMs){
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:TZ,hourCycle:'h23',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'})
+    .formatToParts(new Date(utcMs)).map(x => [x.type, x.value]));
+  return Date.UTC(+p.year, +p.month-1, +p.day, +p.hour % 24, +p.minute, +p.second) - utcMs;
+}
+function localToUtc(Y, M, D, h, mi){ const g = Date.UTC(Y, M-1, D, h, mi); return g - tzOffsetMs(g - tzOffsetMs(g)); }
+const todayStr = () => new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+const HHMM = new Intl.DateTimeFormat('en-GB',{timeZone:TZ,hour:'2-digit',minute:'2-digit'});
+const hhmm = ms => HHMM.format(new Date(ms));
+
+/* ---------- sun (after SunCalc) ---------- */
+function sunPos(ms, lat, lon){
+  const d = ms/86400000 - 0.5 + 2440588 - 2451545;
+  const M = RAD*(357.5291 + 0.98560028*d);
+  const C = RAD*(1.9148*Math.sin(M) + 0.02*Math.sin(2*M) + 0.0003*Math.sin(3*M));
+  const L = M + C + RAD*102.9372 + Math.PI, e = RAD*23.4397;
+  const dec = Math.asin(Math.sin(e)*Math.sin(L)), ra = Math.atan2(Math.sin(L)*Math.cos(e), Math.cos(L));
+  const phi = RAD*lat, H = RAD*(280.16 + 360.9856235*d) + RAD*lon - ra;
+  const alt = Math.asin(Math.sin(phi)*Math.sin(dec) + Math.cos(phi)*Math.cos(dec)*Math.cos(H));
+  const az = Math.atan2(Math.sin(H), Math.cos(H)*Math.sin(phi) - Math.tan(dec)*Math.cos(phi)) + Math.PI;
+  let a = alt/RAD; if (a > -1) a += 1.02/Math.tan(RAD*(a + 10.3/(a + 5.11)))/60;
+  return { alt:a, az:(az/RAD + 360) % 360, dx:Math.sin(az), dy:Math.cos(az), tan:Math.tan(RAD*Math.max(a, 0.01)) };
+}
+const compass = az => ['N','NE','E','SE','S','SW','W','NW'][Math.round(az/45) % 8];
+
+/* ---------- local frame: metres around Antwerp centre ---------- */
+const mercX = lon => (lon + 180)/360;
+const mercY = lat => (1 - Math.log(Math.tan(lat*RAD) + 1/Math.cos(lat*RAD))/Math.PI)/2;
+const ORIGIN = { ox:mercX(ANTWERP.center[0]), oy:mercY(ANTWERP.center[1]), mpu:1/(2*Math.PI*6378137*Math.cos(ANTWERP.center[1]*RAD)) };
+const toLngLat = (x, y) => { const mx = ORIGIN.ox + x*ORIGIN.mpu, my = ORIGIN.oy - y*ORIGIN.mpu; return [mx*360 - 180, Math.atan(Math.sinh(Math.PI*(1 - 2*my)))*180/Math.PI]; };
+
+/* ---------- building store (CPU side, for café sun checks) ---------- */
+const CELL = 60, grid = new Map();
+function addBuildings(T){
+  const n = T.polyH.length;
+  for (let p = 0; p < n; p++){
+    const b = { T, p, h:T.polyH[p], bb:[T.polyBB[4*p], T.polyBB[4*p+1], T.polyBB[4*p+2], T.polyBB[4*p+3]] };
+    for (let ix = Math.floor(b.bb[0]/CELL); ix <= Math.floor(b.bb[2]/CELL); ix++)
+      for (let iy = Math.floor(b.bb[1]/CELL); iy <= Math.floor(b.bb[3]/CELL); iy++){
+        const k = ix*100000 + iy; let a = grid.get(k); if (!a) grid.set(k, a = []); a.push(b);
+      }
+  }
+}
+function nearOf(x, y){
+  const out = new Set(), r = Math.ceil(NEAR_R/CELL), cx = Math.floor(x/CELL), cy = Math.floor(y/CELL);
+  for (let ix = cx-r; ix <= cx+r; ix++) for (let iy = cy-r; iy <= cy+r; iy++){ const a = grid.get(ix*100000 + iy); if (a) for (const b of a) out.add(b); }
+  return [...out];
+}
+// iterate every edge of a building polygon (all rings)
+function edges(b, fn){
+  const T = b.T, c = T.cc, r0 = T.polyRing[b.p], r1 = T.polyRing[b.p+1];
+  for (let r = r0; r < r1; r++){
+    const s = T.ringStart[r], e = T.ringStart[r+1], n = e - s;
+    for (let i = 0; i < n; i++){ const a = s + i, bb = s + (i+1) % n; fn(c[2*a], c[2*a+1], c[2*bb], c[2*bb+1]); }
+  }
+}
+function inside(b, x, y){
+  if (x < b.bb[0] || x > b.bb[2] || y < b.bb[1] || y > b.bb[3]) return false;
+  let ins = false;
+  edges(b, (ax, ay, bx, by) => { if ((ay > y) !== (by > y) && x < (bx-ax)*(y-ay)/(by-ay) + ax) ins = !ins; });
+  return ins;
+}
+function inSun(px, py, near, s){
+  if (s.alt < MIN_ALT) return false;
+  const dx = s.dx, dy = s.dy;
+  for (const b of near){
+    let tmin = Infinity;
+    const T = b.T, c = T.cc, r0 = T.polyRing[b.p], r1 = T.polyRing[b.p+1];
+    for (let r = r0; r < r1; r++){
+      const st = T.ringStart[r], en = T.ringStart[r+1], n = en - st;
+      for (let i = 0; i < n; i++){
+        const a = st + i, bi = st + (i+1) % n;
+        const ax = c[2*a], ay = c[2*a+1], ex = c[2*bi] - ax, ey = c[2*bi+1] - ay;
+        const den = dx*ey - dy*ex; if (den > -1e-12 && den < 1e-12) continue;
+        const apx = ax - px, apy = ay - py;
+        const t = (apx*ey - apy*ex)/den; if (t <= 0.05 || t >= tmin) continue;
+        const u = (apx*dy - apy*dx)/den; if (u >= 0 && u <= 1) tmin = t;
+      }
+    }
+    if (tmin < Infinity && tmin*s.tan < b.h - EYE) return false;
+  }
+  return true;
+}
+function placeOnFacade(c){
+  const host = c.near.find(b => inside(b, c.x, c.y));
+  if (!host) return;
+  const cands = [];
+  edges(host, (ax, ay, bx, by) => {
+    const ex = bx-ax, ey = by-ay, L = ex*ex + ey*ey;
+    let u = L ? ((c.x-ax)*ex + (c.y-ay)*ey)/L : 0; u = Math.max(0, Math.min(1, u));
+    const qx = ax + u*ex, qy = ay + u*ey;
+    let dx = qx - c.x, dy = qy - c.y, len = Math.hypot(dx, dy);
+    if (len < 0.01){ dx = ey; dy = -ex; len = Math.hypot(dx, dy) || 1; }
+    cands.push({ d:Math.hypot(qx-c.x, qy-c.y), x:qx + dx/len*2.5, y:qy + dy/len*2.5 });
+  });
+  cands.sort((a,b) => a.d - b.d);
+  for (const k of cands) if (!c.near.some(b => inside(b, k.x, k.y))){ c.x = k.x; c.y = k.y; return; }
+}
+
+/* ---------- cloud forecast (Open-Meteo, hourly, free, no key) ---------- */
+const WX = { hours:null };
+async function loadWeather(){
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${ANTWERP.center[1]}&longitude=${ANTWERP.center[0]}&hourly=cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,temperature_2m&timezone=GMT&past_days=1&forecast_days=2`;
+    const r = await fetch(url, { signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const h = (await r.json()).hourly;
+    const m = new Map();
+    h.time.forEach((ts, i) => {
+      const low = h.cloud_cover_low[i], mid = h.cloud_cover_mid[i], high = h.cloud_cover_high[i], cc = h.cloud_cover[i];
+      let clear;
+      if (low != null && mid != null && high != null) clear = (1 - 0.95*low/100) * (1 - 0.85*mid/100) * (1 - 0.4*high/100); // chance the sun disc is free
+      else if (cc != null) clear = 1 - cc/100; else return;
+      m.set(Date.parse(ts + ':00Z'), { clear:Math.max(0, Math.min(1, clear)), cc, temp:h.temperature_2m[i] });
+    });
+    WX.hours = m;
+  } catch(e){ console.warn('forecast unavailable', e); WX.hours = null; }
+  applyWeather();
+}
+function wxAt(t){
+  if (!WX.hours) return null;
+  const h0 = Math.floor(t/3.6e6)*3.6e6, a = WX.hours.get(h0), b = WX.hours.get(h0 + 3.6e6);
+  if (!a) return b || null; if (!b) return a;
+  const f = (t - h0)/3.6e6, lerp = (x, y) => x + (y - x)*f;
+  return { clear:lerp(a.clear, b.clear), cc:Math.round(lerp(a.cc, b.cc)), temp:lerp(a.temp, b.temp) };
+}
+function skyWord(clear){ return clear > 0.8 ? '☀ Clear' : clear > 0.55 ? '🌤 Mostly clear' : clear > 0.3 ? '⛅ Partly cloudy' : clear > 0.12 ? '🌥 Mostly cloudy' : '☁ Overcast'; }
+function applyWeather(){
+  for (const s of S.slots) s.wx = wxAt(s.t + STEP_MIN*30000);
+  const el = $('#clouds');
+  if (WX.hours && S.slots.length){
+    const n = S.last - S.first + 1, stops = [];
+    for (let i = S.first; i <= S.last; i++){
+      const w = S.slots[i].wx, c = w ? w.clear : 0.5;
+      const col = `rgb(${Math.round(150 + 105*c)},${Math.round(160 + 40*c)},${Math.round(175 - 175*c)})`;
+      const a = ((i - S.first)/n*100).toFixed(2), b = ((i - S.first + 1)/n*100).toFixed(2);
+      stops.push(`${col} ${a}% ${b}%`);
+    }
+    el.style.background = `linear-gradient(90deg, ${stops.join(',')})`; el.classList.add('on');
+  } else el.classList.remove('on');
+  updateTime();
+}
+const clearNow = () => { const w = S.slots[S.idx] && S.slots[S.idx].wx; return w ? w.clear : 1; };
+
+/* ---------- state ---------- */
+const S = { date:todayStr(), slots:[], idx:0, first:0, last:143, cafes:[], cafeKeys:new Set(), tiles:new Map(), chunks:[], tileUrl:null };
+
+function buildDay(){
+  const [Y,M,D] = S.date.split('-').map(Number), t0 = localToUtc(Y, M, D, 0, 0);
+  S.slots = [];
+  for (let i = 0; i < 24*60/STEP_MIN; i++){ const t = t0 + i*STEP_MIN*60000; S.slots.push({ t, sun:sunPos(t, ANTWERP.center[1], ANTWERP.center[0]) }); }
+  const DOWF = new Intl.DateTimeFormat('en-GB', { timeZone:TZ, weekday:'short', hour:'2-digit', minute:'2-digit', hourCycle:'h23' });
+  const WD = { Mon:0, Tue:1, Wed:2, Thu:3, Fri:4, Sat:5, Sun:6 };
+  for (const sl of S.slots){
+    const pt = Object.fromEntries(DOWF.formatToParts(new Date(sl.t)).map(x => [x.type, x.value]));
+    sl.dow = WD[pt.weekday]; sl.min = (+pt.hour % 24)*60 + +pt.minute;
+  }
+  S.first = Math.max(0, S.slots.findIndex(s => s.sun.alt > -1) - 1);
+  S.last = S.slots.length - 1; while (S.last > 0 && S.slots[S.last].sun.alt <= -1) S.last--; S.last = Math.min(S.slots.length - 1, S.last + 1);
+  const sl = $('#slider'); sl.min = S.first; sl.max = S.last;
+  const span = S.last - S.first, ticks = [];
+  for (let k = 0; k <= 4; k++) ticks.push(`<span>${hhmm(S.slots[S.first + Math.round(span*k/4)].t)}</span>`);
+  $('#ticks').innerHTML = ticks.join('');
+}
+function pickDefaultIdx(){
+  const i = Math.round((Date.now() - S.slots[0].t)/(STEP_MIN*60000));
+  return Math.min(Math.max(i, S.first), S.last);
+}
+function computeCafe(c){
+  c.st = new Uint8Array(S.slots.length);
+  for (let i = S.first; i <= S.last; i++) c.st[i] = inSun(c.x, c.y, c.near, S.slots[i].sun) ? 1 : 0;
+}
+
+/* ---------- map ---------- */
+const map = new maplibregl.Map({
+  container:'map', style:'https://tiles.openfreemap.org/styles/positron',
+  center:ANTWERP.center, zoom:15.6, minZoom:12, maxZoom:19, maxBounds:ANTWERP.bounds,
+  dragRotate:false, pitchWithRotate:false, touchPitch:false, attributionControl:{ compact:true, customAttribution:'Weather: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0)' }, fadeDuration:0
+});
+map.touchZoomRotate.disableRotation();
+map.addControl(new maplibregl.NavigationControl({ showCompass:false }), 'top-right');
+const geo = new maplibregl.GeolocateControl({ positionOptions:{ enableHighAccuracy:true }, trackUserLocation:true, showUserLocation:true, fitBoundsOptions:{ maxZoom:16.5 } });
+map.addControl(geo, 'top-right');
+geo.on('geolocate', pos => {
+  const lng = pos.coords.longitude, lat = pos.coords.latitude;
+  const [[w, s], [e, n]] = ANTWERP.bounds, inside = lng > w && lng < e && lat > s && lat < n;
+  const first = !S.me;
+  S.me = { lng, lat, inside, x:(mercX(lng) - ORIGIN.ox)/ORIGIN.mpu, y:-(mercY(lat) - ORIGIN.oy)/ORIGIN.mpu };
+  $('#nearme').classList.add('on');
+  if (!inside && first) $('#ohnote').textContent = '· you seem to be outside Antwerp';
+  scheduleList();
+});
+geo.on('error', () => { $('#nearme').classList.remove('on'); $('#count').innerHTML = '<span style="color:#c2410c">Your location is not available. Allow location access in your browser, or search instead.</span>'; });
+geo.on('trackuserlocationend', () => { /* keep last known position for ranking */ });
+
+/* ---------- GPU shadow layer ---------- */
+const shadowLayer = {
+  id:'sun-shadows', type:'custom', renderingMode:'2d',
+  onAdd(){ },
+  init(gl){
+    this.gl = gl;
+    this.isGL2 = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext;
+    if (!this.isGL2){ gl.getExtension('OES_element_index_uint'); this.vao = gl.getExtension('OES_vertex_array_object'); }
+    const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s)); return s; };
+    const prog = (vs, fs) => { const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p); return p; };
+    this.mask = prog(
+      'attribute vec3 a_pos; uniform mat4 u_matrix; uniform vec2 u_off; void main(){ gl_Position = u_matrix * vec4(a_pos.xy + u_off * a_pos.z, 0.0, 1.0); }',
+      'precision mediump float; uniform float u_val; void main(){ gl_FragColor = vec4(u_val, 0.0, 0.0, 1.0); }');
+    this.comp = prog(
+      'attribute vec2 a_xy; void main(){ gl_Position = vec4(a_xy, 0.0, 1.0); }',
+      'precision mediump float; uniform sampler2D u_tex; uniform vec2 u_size; uniform float u_alpha; uniform float u_night; uniform vec3 u_col;' +
+      'void main(){ float m = max(texture2D(u_tex, gl_FragCoord.xy / u_size).r, u_night); float a = m * u_alpha; gl_FragColor = vec4(u_col * a, a); }');
+    this.loc = {
+      pos: gl.getAttribLocation(this.mask, 'a_pos'), matrix: gl.getUniformLocation(this.mask, 'u_matrix'), off: gl.getUniformLocation(this.mask, 'u_off'), val: gl.getUniformLocation(this.mask, 'u_val'),
+      xy: gl.getAttribLocation(this.comp, 'a_xy'), tex: gl.getUniformLocation(this.comp, 'u_tex'), size: gl.getUniformLocation(this.comp, 'u_size'),
+      alpha: gl.getUniformLocation(this.comp, 'u_alpha'), night: gl.getUniformLocation(this.comp, 'u_night'), col: gl.getUniformLocation(this.comp, 'u_col')
+    };
+    this.quad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this.quad);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+    this.fbo = gl.createFramebuffer(); this.tex = gl.createTexture(); this.w = 0; this.h = 0;
+  },
+  unbindVao(){ const gl = this.gl; if (this.isGL2) gl.bindVertexArray(null); else if (this.vao) this.vao.bindVertexArrayOES(null); },
+  upload(T){
+    const gl = this.gl;
+    if (!T.idx.length) return;
+    const vbo = gl.createBuffer(), ibo = gl.createBuffer();
+    this.unbindVao();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo); gl.bufferData(gl.ARRAY_BUFFER, T.verts, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, T.idx, gl.STATIC_DRAW);
+    S.chunks.push({ vbo, ibo, quadCount:T.quadCount, roofCount:T.roofCount });
+    T.verts = null; T.idx = null; // free CPU copies
+  },
+  ensureTarget(){
+    const gl = this.gl, w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
+    if (w === this.w && h === this.h) return;
+    this.w = w; this.h = h;
+    const prev = gl.getParameter(gl.FRAMEBUFFER_BINDING);
+    gl.bindTexture(gl.TEXTURE_2D, this.tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.tex, 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, prev);
+  },
+  prerender(gl, matrix){
+    if (!this.gl) this.init(gl);
+    // upload freshly decoded tiles here, where MapLibre expects GL state changes
+    if (S.pendingGpu && S.pendingGpu.length){ for (const T of S.pendingGpu) this.upload(T); S.pendingGpu = []; }
+    this.ensureTarget();
+    const sun = S.slots[S.idx] && S.slots[S.idx].sun;
+    if (!sun || sun.alt < MIN_ALT) return;
+    const prevFbo = gl.getParameter(gl.FRAMEBUFFER_BINDING), prevVp = gl.getParameter(gl.VIEWPORT);
+    this.ensureTarget();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
+    gl.viewport(0, 0, this.w, this.h);
+    gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.disable(gl.BLEND); gl.disable(gl.DEPTH_TEST); gl.disable(gl.STENCIL_TEST); gl.disable(gl.CULL_FACE); gl.colorMask(true, true, true, true);
+    this.unbindVao();
+    gl.useProgram(this.mask);
+    // matrix · translate(origin) · scale(metres → mercator units), composed in double precision
+    const o = ORIGIN, s = o.mpu, mm = new Float32Array(16);
+    for (let r = 0; r < 4; r++){
+      mm[r] = matrix[r]*s; mm[4+r] = matrix[4+r]*s; mm[8+r] = matrix[8+r];
+      mm[12+r] = matrix[r]*o.ox + matrix[4+r]*o.oy + matrix[12+r];
+    }
+    gl.uniformMatrix4fv(this.loc.matrix, false, mm);
+    const k = Math.min(1/sun.tan, 40);
+    gl.uniform2f(this.loc.off, -sun.dx*k, sun.dy*k);
+    gl.enableVertexAttribArray(this.loc.pos);
+    gl.uniform1f(this.loc.val, 1);
+    for (const ch of S.chunks){
+      gl.bindBuffer(gl.ARRAY_BUFFER, ch.vbo); gl.vertexAttribPointer(this.loc.pos, 3, gl.FLOAT, false, 12, 0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ch.ibo); gl.drawElements(gl.TRIANGLES, ch.quadCount, gl.UNSIGNED_INT, 0);
+    }
+    gl.uniform1f(this.loc.val, 0); // rooftops stay lit
+    for (const ch of S.chunks){
+      if (!ch.roofCount) continue;
+      gl.bindBuffer(gl.ARRAY_BUFFER, ch.vbo); gl.vertexAttribPointer(this.loc.pos, 3, gl.FLOAT, false, 12, 0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ch.ibo); gl.drawElements(gl.TRIANGLES, ch.roofCount, gl.UNSIGNED_INT, ch.quadCount*4);
+    }
+    gl.disableVertexAttribArray(this.loc.pos);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, prevFbo);
+    gl.viewport(prevVp[0], prevVp[1], prevVp[2], prevVp[3]);
+  },
+  render(gl){
+    const sun = S.slots[S.idx] && S.slots[S.idx].sun; if (!sun || !this.gl) return;
+    const night = sun.alt < MIN_ALT;
+    this.unbindVao();
+    gl.useProgram(this.comp);
+    gl.disable(gl.DEPTH_TEST); gl.disable(gl.STENCIL_TEST);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.tex);
+    gl.uniform1i(this.loc.tex, 0);
+    gl.uniform2f(this.loc.size, gl.drawingBufferWidth, gl.drawingBufferHeight);
+    gl.uniform1f(this.loc.alpha, night ? (sun.alt < -1 ? 0.55 : 0.4) : 0.32*(0.15 + 0.85*clearNow()));
+    gl.uniform1f(this.loc.night, night ? 1 : 0);
+    gl.uniform3f(this.loc.col, 0.08, 0.10, 0.24);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.quad);
+    gl.enableVertexAttribArray(this.loc.xy);
+    gl.vertexAttribPointer(this.loc.xy, 2, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.disableVertexAttribArray(this.loc.xy);
+  }
+};
+
+buildDay(); S.idx = pickDefaultIdx(); $('#slider').value = S.idx;
+
+/* ---------- opening hours (common OpenStreetMap formats) ---------- */
+const DAYN = { Mo:0, Tu:1, We:2, Th:3, Fr:4, Sa:5, Su:6 };
+function parseOH(str){
+  if (!str) return null;
+  str = String(str).trim();
+  if (/^24\/7$/.test(str)) return Array.from({ length:7 }, () => [[0, 1440]]);
+  str = str.replace(/"[^"]*"/g, '')
+           .replace(/(\d|off|closed),\s*(?=(?:Mo|Tu|We|Th|Fr|Sa|Su|PH)\b)/g, '$1;'); // "Mo-Fr 9:00-17:00, Sa 10:00-14:00"
+  const days = Array.from({ length:7 }, () => []);
+  let any = false;
+  for (let rule of str.split(/\s*(?:;|\|\|)\s*/)){
+    rule = rule.trim(); if (!rule) continue;
+    if (/^(PH|SH)\b/.test(rule)) continue;                                   // public/school holidays: ignore
+    if (/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|week|easter)\b/i.test(rule)) continue; // seasonal rules: ignore
+    const m = rule.match(/^((?:(?:Mo|Tu|We|Th|Fr|Sa|Su|PH)(?:-(?:Mo|Tu|We|Th|Fr|Sa|Su))?(?:\[[^\]]*\])?\s*,?\s*)+)?(.*)$/);
+    const dayPart = (m[1] || '').trim(), timePart = (m[2] || '').trim();
+    let ds = [];
+    if (!dayPart) ds = [0,1,2,3,4,5,6];
+    else for (let tok of dayPart.split(',')){
+      tok = tok.replace(/\[.*?\]/, '').trim(); if (!tok || tok === 'PH') continue;
+      const [a, b] = tok.split('-');
+      if (b && DAYN[a] != null && DAYN[b] != null){ for (let i = DAYN[a]; ; i = (i+1) % 7){ ds.push(i); if (i === DAYN[b]) break; } }
+      else if (DAYN[a] != null) ds.push(DAYN[a]);
+    }
+    if (!ds.length) continue;
+    if (/^(off|closed)$/i.test(timePart)){ ds.forEach(d => days[d] = []); any = true; continue; }
+    if (!timePart || timePart === '24/7'){ ds.forEach(d => days[d] = [[0, 1440]]); any = true; continue; }
+    const iv = [];
+    for (const t of timePart.split(/\s*,\s*/)){
+      const a = t.match(/^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})\+?$/), b = t.match(/^(\d{1,2}):(\d{2})\+$/);
+      if (a){ const s = +a[1]*60 + +a[2]; let e = +a[3]*60 + +a[4]; if (e <= s) e += 1440; iv.push([s, e]); }
+      else if (b){ const s = +b[1]*60 + +b[2]; iv.push([s, s + 240]); }       // "18:00+" = open end, assume 4 h
+      else return null;                                                       // format we don't understand
+    }
+    ds.forEach(d => days[d] = iv.slice()); any = true;
+  }
+  return any ? days : null;
+}
+// 1 = open, 0 = closed, -1 = unknown
+function openAt(days, dow, min){
+  if (!days) return -1;
+  for (const [s, e] of days[dow]) if (min >= s && min < e) return 1;
+  for (const [s, e] of days[(dow + 6) % 7]) if (e > 1440 && min + 1440 >= s && min + 1440 < e) return 1;
+  return 0;
+}
+function openUntil(days, dow, min){
+  for (const [s, e] of days[dow]) if (min >= s && min < e) return e % 1440;
+  for (const [s, e] of days[(dow + 6) % 7]) if (e > 1440 && min + 1440 >= s && min + 1440 < e) return e - 1440;
+  return null;
+}
+function opensNext(days, dow, min){
+  const later = days[dow].filter(([s]) => s > min).sort((a, b) => a[0] - b[0]);
+  return later.length ? later[0][0] : null;
+}
+const fmtMin = m => String(Math.floor(m/60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+
+/* ---------- the list of cafés & coffee bars (OpenStreetMap, cached for 3 days) ---------- */
+const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+const POI_CACHE = 'sunspot-antwerp-pois-v2';
+const POI_FILE = 'antwerp-cafes.json';   // put this file next to the page; refresh it daily with update-cafes.mjs
+const terraceTag = v => v == null ? null : /^(yes|terrace|garden|pedestrian_zone|sidewalk|street|patio|veranda|roof)/.test(v) ? 1 : v === 'no' ? 0 : null;
+async function loadPois(){
+  try {
+    const r = await fetch(POI_FILE, { cache:'no-cache', signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined });
+    if (r.ok){ const j = await r.json(); if (j && j.pois && j.pois.length){ S.poiSource = 'file'; return j.pois; } }
+  } catch(e){ /* not hosted next to the page (or opened as a local file): fall back */ }
+  try {
+    const c = JSON.parse(localStorage.getItem(POI_CACHE) || 'null');
+    if (c && Date.now() - c.t < 3*86400000 && c.pois && c.pois.length) return c.pois;
+  } catch(e){}
+  const [[w, s], [e, n]] = [ANTWERP.bounds[0], ANTWERP.bounds[1]];
+  const q = `[out:json][timeout:25];nwr["amenity"~"^(cafe|bar|pub|biergarten)$"](${s},${w},${n},${e});out center tags;`;
+  for (const ep of OVERPASS){
+    try {
+      const r = await fetch(ep + '?data=' + encodeURIComponent(q), { signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined });
+      if (!r.ok) continue;
+      const j = await r.json();
+      const pois = [];
+      for (const el of j.elements || []){
+        const t = el.tags || {}, lat = el.lat ?? el.center?.lat, lon = el.lon ?? el.center?.lon;
+        if (lat == null || !t.name) continue;
+        if (/ice_cream|frozen_yogurt/.test(t.cuisine || '') || NOT_COFFEE.test(t.name)) continue;
+        pois.push({ n:t.name, k: t.amenity === 'cafe' ? 'coffee' : 'cafe', la:+lat.toFixed(6), lo:+lon.toFixed(6), oh:t.opening_hours || '', t:terraceTag(t.outdoor_seating) });
+      }
+      if (pois.length){ try { localStorage.setItem(POI_CACHE, JSON.stringify({ t:Date.now(), pois })); } catch(e){} return pois; }
+    } catch(err){ console.warn('overpass', ep, err); }
+  }
+  return null;
+}
+S.poiMode = 'tiles'; S.tilePois = [];
+function tileKeyOf(lng, lat){ const n = 1 << TZOOM; return TZOOM + '/' + Math.floor(mercX(lng)*n) + '/' + Math.floor(mercY(lat)*n); }
+function addCafe(p){
+  const dk = p.name + '|' + p.lng.toFixed(4) + ',' + p.lat.toFixed(4);
+  if (S.cafeKeys.has(dk)) return null; S.cafeKeys.add(dk);
+  const x = (mercX(p.lng) - ORIGIN.ox)/ORIGIN.mpu, y = -(mercY(p.lat) - ORIGIN.oy)/ORIGIN.mpu;
+  const c = { id:S.cafes.length, name:p.name, kind:p.kind, oh:p.oh || '', hours:parseOH(p.oh), x0:x, y0:y, x, y, lng:p.lng, lat:p.lat,
+    lng0:p.lng, lat0:p.lat, tile:tileKeyOf(p.lng, p.lat), ready:false, norm:normalize(p.name), t:p.t ?? null };
+  computeOpen(c);
+  S.cafes.push(c);
+  return c;
+}
+function computeOpen(c){
+  c.open = new Int8Array(S.slots.length);
+  for (let i = 0; i < S.slots.length; i++) c.open[i] = openAt(c.hours, S.slots[i].dow, S.slots[i].min);
+}
+function computeSun(c){
+  c.x = c.x0; c.y = c.y0; c.near = nearOf(c.x, c.y); placeOnFacade(c); [c.lng, c.lat] = toLngLat(c.x, c.y);
+  computeCafe(c); c.ready = true;
+}
+function normalize(s){ return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim(); }
+
+$('#ohnote').textContent = '· loading opening hours…';
+loadPois().then(pois => {
+  if (!pois){ $('#ohnote').textContent = '· opening hours unavailable right now'; return; }
+  // switch from the tile points to the full OpenStreetMap list (all of Antwerp, with opening hours)
+  S.poiMode = 'osm'; S.cafes = []; S.cafeKeys = new Set();
+  if (popup){ popup.remove(); popupId = null; }
+  for (const p of pois) addCafe({ name:p.n, kind:p.k, lng:p.lo, lat:p.la, oh:p.oh, t:p.t });
+  for (const c of S.cafes) if (S.tiles.get(c.tile) === 'done') computeSun(c);
+  $('#ohnote').textContent = '';
+  pushCafes(true);
+}).catch(err => { console.warn(err); $('#ohnote').textContent = '· opening hours unavailable right now'; });
+
+/* ---------- tile loading via worker ---------- */
+const worker = new Worker(URL.createObjectURL(new Blob([$('#worker-src').textContent], { type:'text/javascript' })));
+worker.postMessage({ type:'init', ...ORIGIN });
+let inflight = 0;
+worker.onmessage = e => {
+  const m = e.data; inflight--; updateLoading();
+  if (m.type !== 'tile'){ S.tiles.delete(m.key); console.warn('tile failed', m.key, m.msg); return; }
+  S.tiles.set(m.key, 'done');
+  (S.pendingGpu = S.pendingGpu || []).push(m);
+  addBuildings(m);
+  // café points from the tile: only used if the OpenStreetMap list could not be loaded
+  const tp = m.cafes.filter(p => p.sub !== 'ice_cream' && !NOT_COFFEE.test(p.name) && p.name)
+    .map(p => ({ name:p.name, kind: p.cls === 'cafe' ? 'coffee' : 'cafe', lng:p.lng, lat:p.lat, oh:'' }));
+  if (S.poiMode === 'tiles') tp.forEach(addCafe);
+  // (re)compute sun for cafés in or near this tile
+  const [, tx, ty] = m.key.split('/').map(Number), n = 1 << TZOOM;
+  const x1 = (tx/n - ORIGIN.ox)/ORIGIN.mpu - NEAR_R, x2 = ((tx+1)/n - ORIGIN.ox)/ORIGIN.mpu + NEAR_R;
+  const y1 = -((ty+1)/n - ORIGIN.oy)/ORIGIN.mpu - NEAR_R, y2 = -(ty/n - ORIGIN.oy)/ORIGIN.mpu + NEAR_R;
+  let changed = false;
+  for (const c of S.cafes){
+    if (c.x0 > x1 && c.x0 < x2 && c.y0 > y1 && c.y0 < y2 && S.tiles.get(c.tile) === 'done'){ computeSun(c); changed = true; }
+  }
+  if (changed) pushCafes(true);
+  map.triggerRepaint();
+};
+function updateLoading(){ $('#loading').textContent = inflight > 0 ? 'Loading buildings…' : ''; }
+function requestTiles(){
+  if (!S.tileUrl || map.getZoom() < TZOOM - 0.5) return;
+  const b = map.getBounds(), n = 1 << TZOOM;
+  const x1 = Math.floor(mercX(b.getWest() - 0.004)*n), x2 = Math.floor(mercX(b.getEast() + 0.004)*n);
+  const y1 = Math.floor(mercY(b.getNorth() + 0.003)*n), y2 = Math.floor(mercY(b.getSouth() - 0.003)*n);
+  const cx = (x1 + x2)/2, cy = (y1 + y2)/2, list = [];
+  for (let x = x1; x <= x2; x++) for (let y = y1; y <= y2; y++){ const key = TZOOM + '/' + x + '/' + y; if (!S.tiles.has(key)) list.push({ x, y, key, d:(x-cx)**2 + (y-cy)**2 }); }
+  list.sort((a, b) => a.d - b.d);
+  for (const t of list.slice(0, 30)){
+    S.tiles.set(t.key, 'loading'); inflight++;
+    worker.postMessage({ type:'tile', key:t.key, z:TZOOM, x:t.x, y:t.y, url:S.tileUrl.replace('{z}', TZOOM).replace('{x}', t.x).replace('{y}', t.y) });
+  }
+  updateLoading();
+}
+
+/* ---------- filters ---------- */
+const F = { coffee:true, cafe:true, openOnly:false, terrace:false };
+const kindOn = c => (c.kind === 'coffee' ? F.coffee : F.cafe);
+const isOpenNow = c => c.open ? c.open[S.idx] : -1;            // 1 / 0 / -1 (unknown)
+const passes = c => kindOn(c) && !(F.openOnly && isOpenNow(c) === 0) && !(F.terrace && c.t !== 1);
+function applyFilters(){
+  if (!map.getLayer('cafe-dot')) return;
+  const kinds = ['literal', [F.coffee && 'coffee', F.cafe && 'cafe'].filter(Boolean)];
+  const f = ['all', ['in', ['get', 'kind'], kinds], F.terrace ? ['==', ['get', 't'], 1] : true];
+  for (const id of ['cafe-glow', 'cafe-dot', 'cafe-label']) map.setFilter(id, f);
+  lastClearQ = -1; updatePaint();
+  scheduleList();
+}
+document.querySelectorAll('.chip').forEach(ch => ch.addEventListener('click', () => {
+  const k = ch.dataset.f; F[k] = !F[k]; ch.classList.toggle('on', F[k]); ch.setAttribute('aria-pressed', F[k]);
+  applyFilters();
+}));
+
+/* ---------- café layers (state via feature-state: no re-tiling on slider moves) ---------- */
+let lastStates = new Map();
+function pushCafes(dataChanged){
+  const src = map.getSource('cafes'); if (!src) return;
+  if (dataChanged){
+    src.setData({ type:'FeatureCollection', features:S.cafes.filter(c => c.ready).map(c => ({ type:'Feature', id:c.id,
+      geometry:{ type:'Point', coordinates:[c.lng, c.lat] }, properties:{ name:c.name, kind:c.kind, t:c.t ?? -1 } })) });
+    lastStates = new Map();
+  }
+  for (const c of S.cafes){
+    if (!c.ready) continue;
+    const sun = c.st[S.idx] ? 1 : 0, op = isOpenNow(c), key = sun*10 + op + 1;
+    if (lastStates.get(c.id) !== key){ map.setFeatureState({ source:'cafes', id:c.id }, { sunny:sun === 1, open:op }); lastStates.set(c.id, key); }
+  }
+  scheduleList();
+  if (popupId != null) openPopup(popupId, true);
+}
+let lastClearQ = -1;
+function updatePaint(){
+  if (!map.getLayer('cafe-dot')) return;
+  const q = Math.round(clearNow()*10)/10;
+  if (q === lastClearQ) return;
+  lastClearQ = q;
+  const sunny = ['boolean', ['feature-state', 'sunny'], false];
+  const closed = ['==', ['coalesce', ['feature-state', 'open'], -1], 0];
+  const hide = F.openOnly;
+  map.setPaintProperty('cafe-dot', 'circle-color', ['case', closed, '#b7bcc6', sunny, mixHex('#d8ccae', '#ffb300', q), '#7d8797']);
+  map.setPaintProperty('cafe-dot', 'circle-opacity', ['case', closed, hide ? 0 : 0.55, 1]);
+  map.setPaintProperty('cafe-dot', 'circle-stroke-opacity', ['case', closed, hide ? 0 : 0.6, 1]);
+  map.setPaintProperty('cafe-glow', 'circle-opacity', ['case', closed, 0, sunny, 0.45*q, 0]);
+  map.setPaintProperty('cafe-label', 'text-color', ['case', closed, '#9aa0aa', sunny, mixHex('#6b6f7a', '#5a3d00', q), '#6b7280']);
+  map.setPaintProperty('cafe-label', 'text-opacity', ['case', closed, hide ? 0 : 0.7, 1]);
+}
+
+map.on('load', () => {
+  const st = map.getStyle();
+  const srcId = Object.keys(st.sources).find(k => st.sources[k].type === 'vector');
+  const firstSymbol = (st.layers.find(l => l.type === 'symbol') || {}).id;
+  map.addLayer(shadowLayer, firstSymbol);
+  map.addSource('cafes', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
+  map.addLayer({ id:'cafe-glow', type:'circle', source:'cafes',
+    paint:{ 'circle-radius':['interpolate',['linear'],['zoom'],14,11,18,20], 'circle-color':'#ffc400', 'circle-blur':0.7, 'circle-opacity':0 } });
+  const sunny = ['boolean', ['feature-state', 'sunny'], false];
+  map.addLayer({ id:'cafe-dot', type:'circle', source:'cafes',
+    paint:{ 'circle-radius':['interpolate',['linear'],['zoom'],14,['case',sunny,5.5,3.5],18,['case',sunny,9,6]],
+      'circle-color':'#7d8797', 'circle-stroke-color':['match', ['get','kind'], 'coffee', '#ffffff', '#fff3e0'], 'circle-stroke-width':['case', sunny, 2, 1.2] } });
+  map.addLayer({ id:'cafe-label', type:'symbol', source:'cafes', minzoom:16,
+    layout:{ 'text-field':['get','name'], 'text-font':['Noto Sans Regular'], 'text-size':12, 'text-offset':[0,1.1], 'text-anchor':'top', 'text-optional':true },
+    paint:{ 'text-color':'#6b7280', 'text-halo-color':'#fff', 'text-halo-width':1.5 } });
+  map.on('click', 'cafe-dot', e => {
+    const f = e.features.find(f => { const c = S.cafes[f.id]; return c && passes(c); });
+    if (f) openPopup(f.id);
+  });
+  map.on('mouseenter', 'cafe-dot', () => map.getCanvas().style.cursor = 'pointer');
+  map.on('mouseleave', 'cafe-dot', () => map.getCanvas().style.cursor = '');
+
+  const getUrl = () => { const s = map.getSource(srcId); return s && s.tiles && s.tiles[0]; };
+  S.tileUrl = getUrl();
+  if (!S.tileUrl) map.on('sourcedata', function h(e){ if (e.sourceId === srcId && getUrl()){ S.tileUrl = getUrl(); map.off('sourcedata', h); requestTiles(); } });
+
+  updateTime();
+  applyFilters();
+  pushCafes(true);
+  // start at the visitor's position if they allowed location before
+  try { navigator.permissions && navigator.permissions.query({ name:'geolocation' }).then(p => { if (p.state === 'granted') geo.trigger(); }).catch(() => {}); } catch(e){}
+  if (isPhone()) setSheet(false);
+  requestTiles();
+  loadWeather(); setInterval(loadWeather, 30*60*1000);
+});
+map.on('moveend', () => { requestTiles(); scheduleList(); });
+
+/* ---------- time changes ---------- */
+function updateTime(){
+  const slot = S.slots[S.idx]; if (!slot) return;
+  const s = slot.sun, w = slot.wx;
+  $('#clock').textContent = hhmm(slot.t);
+  const sunTxt = s.alt >= MIN_ALT ? `Sun ${Math.round(s.alt)}° high in the ${compass(s.az)}` : (s.alt > -1 ? 'Sun on the horizon' : 'Sun is down');
+  $('#suninfo').innerHTML = esc(sunTxt) + (w ? ` · <span class="wx">${skyWord(w.clear)}, ${Math.round(w.temp)}°C</span>` : '');
+  updatePaint();
+  pushCafes(false);
+  map.triggerRepaint();
+}
+
+/* ---------- side list & search ---------- */
+let listTimer = null;
+function scheduleList(){ if (listTimer) return; listTimer = setTimeout(() => { listTimer = null; renderList(); }, 120); }
+const sunnyUntil = (c, i) => { let j = i; while (j <= S.last && c.st[j]) j++; return S.slots[Math.min(j, S.slots.length - 1)].t; };
+const nextSun = (c, i) => { for (let j = i; j <= S.last; j++) if (c.st[j]) return S.slots[j].t; return null; };
+const kindIcon = c => c.kind === 'coffee' ? '☕' : '🍺';
+const kindWord = c => c.kind === 'coffee' ? 'Coffee bar' : 'Café';
+let lastListHtml = '';
+function statusShort(c){
+  const op = isOpenNow(c);
+  if (op === 0) return '<span class="u closed">closed</span>';
+  if (!c.ready) return '<span class="u dim">…</span>';
+  return c.st[S.idx] ? `<span class="u sun">until ${hhmm(sunnyUntil(c, S.idx))}</span>` : '<span class="u dim">shade</span>';
+}
+/* ---------- ranking: where should I sit? ---------- */
+const WALK_M_PER_MIN = 75;
+function refPoint(){
+  if (S.me && S.me.inside) return { x:S.me.x, y:S.me.y, me:true };
+  const c = map.getCenter();
+  return { x:(mercX(c.lng) - ORIGIN.ox)/ORIGIN.mpu, y:-(mercY(c.lat) - ORIGIN.oy)/ORIGIN.mpu, me:false };
+}
+const walkMin = (c, r) => Math.max(1, Math.round(Math.hypot(c.x - r.x, c.y - r.y)*1.3/WALK_M_PER_MIN));
+function candidates(r){
+  if (r.me) return S.cafes.filter(c => c.ready && passes(c) && Math.hypot(c.x - r.x, c.y - r.y) < 1500);
+  const vb = map.getBounds();
+  return S.cafes.filter(c => c.ready && passes(c) && vb.contains([c.lng, c.lat]));
+}
+function score(c, r, walk){
+  const i = S.idx, open = isOpenNow(c);
+  if (!c.st[i] || open === 0) return -Infinity;
+  const left = Math.min((sunnyUntil(c, i) - S.slots[i].t)/60000, 150);
+  return left*(0.4 + 0.6*clearNow()) - (r.me ? 2.2 : 0.8)*walk + (c.t === 1 ? 20 : c.t === 0 ? -45 : 0) + (open === 1 ? 4 : 0);
+}
+const terraceIcon = c => c.t === 1 ? ' <span title="Has a terrace">⛱</span>' : '';
+function bestCard(r, ranked, cands){
+  const slot = S.slots[S.idx], when = Math.abs(slot.t - Date.now()) < 10*60000 ? 'now' : `at ${hhmm(slot.t)}`;
+  if (slot.sun.alt < MIN_ALT) return `<div class="best muted">The sun is down ${when === 'now' ? 'right now' : when}. Slide to daytime to find a sunny spot.</div>`;
+  const top = ranked[0];
+  if (top){
+    const c = top.c, open = isOpenNow(c);
+    return `<div class="best" data-id="${c.id}" role="button" tabindex="0">
+      <div class="best-k">Best pick ${when}${r.me ? ' near you' : ''}</div>
+      <div class="best-n">${kindIcon(c)} ${esc(c.name)}${terraceIcon(c)}</div>
+      <div class="best-d">☀ sun until ${hhmm(sunnyUntil(c, S.idx))} · ${top.walk} min walk${open === 1 ? ' · open' : ''}${clearNow() < 0.4 ? ' · but cloudy' : ''}</div></div>`;
+  }
+  // nothing sunny now: earliest next sun nearby
+  let next = null;
+  for (const c of cands){ const t = nextSun(c, S.idx); if (t && (!next || t < next.t)) next = { c, t }; }
+  return next ? `<div class="best muted" data-id="${next.c.id}" role="button" tabindex="0">No sunny terrace ${when}${r.me ? ' near you' : ' here'}. Next sun: <b>${esc(next.c.name)}</b> at ${hhmm(next.t)}.</div>`
+              : `<div class="best muted">No sunny spot ${when}${r.me ? ' near you' : ' in view'} for the rest of the day.</div>`;
+}
+function renderList(){
+  const q = normalize($('#search').value);
+  let html, best = '';
+  if (q){
+    const r = refPoint();
+    const hits = S.cafes.filter(c => kindOn(c) && c.norm.includes(q))
+      .sort((a, b) => (a.norm.startsWith(q) ? 0 : 1) - (b.norm.startsWith(q) ? 0 : 1) || a.name.localeCompare(b.name)).slice(0, 40);
+    $('#count').innerHTML = `<b>${hits.length}</b> place${hits.length === 1 ? '' : 's'} match “${esc($('#search').value.trim())}”`;
+    html = hits.length ? hits.map(c => `<div class="cafe" data-id="${c.id}"><span class="n">${kindIcon(c)} ${esc(c.name)}${terraceIcon(c)}</span>${r.me ? `<span class="u dim">${walkMin(c, r)} min · </span>` : ''}${statusShort(c)}</div>`).join('')
+      : '<div class="hint">No café or coffee bar with that name. Check the spelling, or switch on both filters.</div>';
+  } else if (map.getZoom() < TZOOM - 0.5 && !(S.me && S.me.inside)){
+    $('#count').textContent = 'Zoom in to see cafés, coffee bars and shadows.';
+    html = '<div class="hint">Or tap 📍 Near me, or search for a place by name.</div>';
+  } else {
+    const r = refPoint(), cands = candidates(r);
+    const ranked = cands.map(c => ({ c, walk:walkMin(c, r) })).map(o => ({ ...o, s:score(o.c, r, o.walk) }))
+      .filter(o => o.s > -Infinity).sort((a, b) => b.s - a.s);
+    best = bestCard(r, ranked, cands);
+    const sunDown = S.slots[S.idx].sun.alt < MIN_ALT;
+    const noun = F.coffee && F.cafe ? 'places' : F.coffee ? 'coffee bars' : F.cafe ? 'cafés' : 'places';
+    const where = r.me ? 'within 15 min walk' : 'in view';
+    $('#count').innerHTML = !F.coffee && !F.cafe ? 'Switch on Coffee bars or Cafés to see places.'
+      : sunDown ? `${cands.length} ${noun} ${where}`
+      : `<b>${ranked.length}</b> of ${cands.length} ${noun} ${where} in the sun${S.slots[S.idx].wx ? ` · ${skyWord(clearNow())}` : ''}`;
+    html = ranked.slice(1, 80).map(({ c, walk }) => `<div class="cafe" data-id="${c.id}"><span class="n">${kindIcon(c)} ${esc(c.name)}${terraceIcon(c)}</span><span class="u sun">${walk} min · until ${hhmm(sunnyUntil(c, S.idx))}</span></div>`).join('')
+      || (ranked.length ? '' : `<div class="hint">${sunDown ? '' : cands.length ? 'Try another hour, move the map or change the filters.' : inflight ? 'Loading…' : 'Nothing here. Move the map to a busier street, or change the filters.'}</div>`);
+  }
+  if (best !== lastBest){ $('#best').innerHTML = best; lastBest = best; }
+  if (html !== lastListHtml){ $('#list').innerHTML = html; lastListHtml = html; }
+}
+let lastBest = '';
+$('#best').addEventListener('click', e => { const el = e.target.closest('[data-id]'); if (el) focusCafe(+el.dataset.id); });
+$('#best').addEventListener('keydown', e => { if (e.key === 'Enter'){ const el = e.target.closest('[data-id]'); if (el) focusCafe(+el.dataset.id); } });
+function focusCafe(id){
+  const c = S.cafes[id]; if (!c) return;
+  map.easeTo({ center:[c.lng, c.lat], zoom:Math.max(map.getZoom(), 17.2), duration:700, padding: isPhone() ? { bottom:260 } : { left:340 } });
+  openPopup(c.id);
+  if (isPhone()) setSheet(false);
+}
+const isPhone = () => window.matchMedia && window.matchMedia('(max-width:700px)').matches;
+function setSheet(open){ $('.panel').classList.toggle('expanded', open); $('#sheet').setAttribute('aria-expanded', open); $('#sheet').textContent = open ? '▼' : '▲'; }
+$('#sheet').addEventListener('click', () => setSheet(!$('.panel').classList.contains('expanded')));
+$('#search').addEventListener('focus', () => { if (isPhone()) setSheet(true); });
+
+let searchTimer = null;
+$('#search').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(renderList, 120); });
+$('#search').addEventListener('keydown', e => {
+  if (e.key === 'Escape'){ e.target.value = ''; renderList(); }
+  if (e.key === 'Enter'){ const first = $('#list .cafe'); if (first) first.click(); }
+});
+$('#list').addEventListener('click', e => { const el = e.target.closest('.cafe'); if (el) focusCafe(+el.dataset.id); });
+function mixHex(a, b, k){ const h = x => [1,3,5].map(i => parseInt(x.slice(i, i+2), 16)); const A = h(a), B = h(b); return '#' + A.map((v, i) => Math.round(v + (B[i] - v)*k).toString(16).padStart(2, '0')).join(''); }
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+
+/* ---------- popup ---------- */
+let popup = null, popupId = null;
+function hoursHtml(c){
+  const slot = S.slots[S.idx], op = isOpenNow(c);
+  if (op === -1) return `<div class="oh">${c.oh ? 'Opening hours: ' + esc(c.oh) : 'Opening hours unknown'}</div>`;
+  if (op === 1){ const u = openUntil(c.hours, slot.dow, slot.min); return `<div class="oh open">Open${u != null && u !== 0 ? ` until ${fmtMin(u)}` : u === 0 ? ' until midnight' : ''}</div>`; }
+  const nx = opensNext(c.hours, slot.dow, slot.min);
+  return `<div class="oh closed">Closed at ${hhmm(slot.t)}${nx != null ? ` · opens ${fmtMin(nx)}` : ''}</div>`;
+}
+function openPopup(id, refreshOnly){
+  const c = S.cafes[id]; if (!c) return;
+  let body;
+  if (!c.ready){
+    body = '<div class="now-shade">Checking the sun here…</div>';
+  } else {
+    const periods = []; let s0 = -1;
+    for (let i = S.first; i <= S.last + 1; i++){
+      const on = i <= S.last && c.st[i];
+      if (on && s0 < 0) s0 = i;
+      if (!on && s0 >= 0){ periods.push(`${hhmm(S.slots[s0].t)}–${hhmm(S.slots[i].t)}`); s0 = -1; }
+    }
+    const ns = nextSun(c, S.idx), w = S.slots[S.idx].wx;
+    body = (c.st[S.idx] ? `<div class="now-sun">☀ In the sun until ${hhmm(sunnyUntil(c, S.idx))}</div>` : `<div class="now-shade">In the shade${ns ? ` · sun again at ${hhmm(ns)}` : ''}</div>`)
+      + (w ? `<div style="color:#6b6f7a">${skyWord(w.clear)} at ${hhmm(S.slots[S.idx].t)} · ${w.cc}% cloud cover</div>` : '')
+      + (periods.length ? `<div style="margin-top:6px;color:#6b6f7a">Terrace in direct sun today (if no clouds):</div><ul>${periods.map(p => `<li>${p}</li>`).join('')}</ul>` : '<div style="margin-top:6px;color:#6b6f7a">No direct sun on the terrace today.</div>');
+  }
+  const r = refPoint();
+  const extra = `<div class="oh">${c.t === 1 ? '⛱ Has a terrace' : c.t === 0 ? 'No terrace listed' : 'Terrace: unknown'}${r.me ? ` · ${walkMin(c, r)} min walk` : ''}</div>`;
+  const gm = `https://www.google.com/maps/dir/?api=1&destination=${c.lat0},${c.lng0}&travelmode=walking`;
+  const html = `<div class="kind">${kindIcon(c)} ${kindWord(c)}</div><h3>${esc(c.name)}</h3>${hoursHtml(c)}${extra}${body}<a href="${gm}" target="_blank" rel="noopener">Walk there (Google Maps)</a><div class="fine">Sun is estimated from building shapes and heights. Trees and awnings are not included.</div>`;
+  if (refreshOnly){ if (popup && popup.isOpen()) popup.setHTML(html); return; }
+  if (popup) popup.remove();
+  popupId = id;
+  popup = new maplibregl.Popup({ offset:12, maxWidth:'280px' }).setLngLat([c.lng, c.lat]).setHTML(html).addTo(map);
+  popup.on('close', () => { if (popupId === id) popupId = null; });
+}
+
+/* ---------- controls ---------- */
+let raf = null;
+$('#slider').addEventListener('input', e => { S.idx = +e.target.value; if (!raf) raf = requestAnimationFrame(() => { raf = null; updateTime(); }); });
+$('#now').addEventListener('click', () => {
+  if (S.date !== todayStr()){ // page left open past midnight: switch to the new day
+    S.date = todayStr(); buildDay(); for (const c of S.cafes){ computeOpen(c); if (c.ready) computeCafe(c); } applyWeather();
+  }
+  S.idx = pickDefaultIdx(); $('#slider').value = S.idx; updateTime();
+});
+let playTimer = null;
+$('#play').addEventListener('click', () => {
+  if (playTimer){ clearInterval(playTimer); playTimer = null; $('#play').textContent = '▶'; return; }
+  $('#play').textContent = '❚❚';
+  playTimer = setInterval(() => { S.idx = S.idx >= S.last ? S.first : S.idx + 1; $('#slider').value = S.idx; updateTime(); }, 120);
+});
+$('#suninfo').insertAdjacentHTML('afterend', '<span id="loading"></span>');
+$('#nearme').addEventListener('click', () => { geo.trigger(); if (isPhone()) setSheet(false); });
+</script>
+</body>
+</html>
