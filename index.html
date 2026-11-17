@@ -2,14 +2,20 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sunnyspots">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
 <title>Sunny cafés and coffee bars · Antwerp</title>
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script>window.maplibregl || document.write('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css"><script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"><\/script>');</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<meta name="theme-color" content="#FFFCF7">
+
 <style>
   :root{
     --sun:#FFB020; --sun-soft:#FFE7B0; --sun-ink:#8A5300;
@@ -21,13 +27,17 @@
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%;font-family:var(--font);color:var(--ink);overflow:hidden;background:var(--sand)}
+  body{height:100vh;height:100dvh;position:fixed;inset:0;overscroll-behavior:none}
+  :root{--st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);--sl:env(safe-area-inset-left,0px);--sr:env(safe-area-inset-right,0px)}
+  button,.chip,.cafe,.mini,.best{touch-action:manipulation}
   button{font-family:inherit}
   #map{position:absolute;inset:0;background:#efe9de}
 
   /* ---------- panel / sheet ---------- */
-  .panel{position:absolute;z-index:3;top:16px;left:16px;width:380px;max-height:calc(100% - 160px);display:flex;flex-direction:column;
+  .panel{position:absolute;z-index:3;top:calc(16px + var(--st));left:calc(16px + var(--sl));width:380px;max-height:calc(100% - 160px - var(--st) - var(--sb));display:flex;flex-direction:column;
     background:var(--base);border-radius:var(--r-lg);box-shadow:var(--float);overflow:hidden}
   .panel header{order:1;padding:16px 18px 12px}
+  .panel{overflow-x:hidden}
   .grab{display:none}
   .titlebar{display:flex;align-items:center;justify-content:space-between;gap:8px}
   h1{font-size:19px;font-weight:700;letter-spacing:-.01em;margin:0;display:flex;gap:8px;align-items:center}
@@ -36,6 +46,7 @@
   #ohnote{color:#B4531A}
   .sheet-btn{display:none}
   .peek{display:none}
+  .sresults{display:none}
 
   /* best pick */
   #best .best{position:relative;margin:0 0 4px;padding:14px 52px 14px 16px;border-radius:var(--r-md);background:#fff;border:1.5px solid #FFD27A;cursor:pointer;
@@ -57,7 +68,7 @@
   .v-cards #cards::-webkit-scrollbar{display:none}
   .mini{flex:none;width:150px;scroll-snap-align:start;background:#fff;border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;cursor:pointer}
   .mini .mi{font-size:18px}
-  .mini .mn{font-size:14px;font-weight:600;margin:4px 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mini .mn{font-size:14px;font-weight:600;margin:0 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .mini .md{font-size:12px;color:var(--sun-ink)}
   .mini .mw{font-size:12px;color:var(--muted)}
 
@@ -119,7 +130,7 @@
   .sw.strip{width:20px;height:7px;background:linear-gradient(90deg,var(--sun),#C9C4BA)}
 
   /* ---------- time bar ---------- */
-  .timebar{position:absolute;z-index:3;left:50%;transform:translateX(-50%);bottom:20px;width:min(720px,calc(100% - 32px));
+  .timebar{position:absolute;z-index:3;left:50%;transform:translateX(-50%);bottom:calc(20px + var(--sb));width:min(720px,calc(100% - 32px));
     background:var(--base);border-radius:var(--r-lg);box-shadow:var(--float);padding:12px 18px 14px}
   .tb-top{display:flex;align-items:center;gap:12px;margin-bottom:8px}
   .clock{font-size:28px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;min-width:82px}
@@ -156,34 +167,59 @@
   .maplibregl-ctrl-group{border-radius:14px !important;box-shadow:var(--float) !important;overflow:hidden}
   .err{position:absolute;inset:0;display:grid;place-items:center;z-index:9;background:var(--base);padding:30px;text-align:center;font-size:16px;color:#B4531A}
 
+  /* ---------- phones held sideways ---------- */
+  @media (min-width:701px) and (max-height:520px){
+    .panel{top:calc(8px + var(--st));bottom:calc(8px + var(--sb));left:calc(8px + var(--sl));width:330px;max-height:none;overflow-y:auto}
+    #list{overflow:visible}
+    .panel header{padding:12px 14px 10px;display:flex;flex-direction:column}
+    .panel header .searchbox{order:-1;margin:0 0 10px}
+    h1{font-size:16px} .sub{margin-bottom:8px}
+    .timebar{left:calc(346px + var(--sl));right:calc(8px + var(--sr));width:auto;transform:none;bottom:calc(8px + var(--sb));padding:8px 14px 10px}
+    .tb-top{margin-bottom:0} .clock{font-size:22px;min-width:64px} .ticks{display:none}
+    .maplibregl-ctrl-top-right{right:var(--sr) !important}
+  }
+
   /* ---------- phones ---------- */
   @media (max-width:700px){
-    .panel{top:auto;bottom:150px;left:8px;right:8px;width:auto;max-height:calc(100% - 280px);border-radius:var(--r-lg)}
+    .panel{top:auto;bottom:calc(150px + var(--sb));left:calc(8px + var(--sl));right:calc(8px + var(--sr));width:auto;max-height:calc(100% - 280px - var(--st) - var(--sb));border-radius:var(--r-lg)}
     .v-cards #cards{margin:10px -16px 0;padding:0 16px 4px}
     #slider{margin-top:2px;height:24px}
     .panel header{padding:6px 16px 10px}
-    .grab{display:block;width:100%;height:22px;border:0;background:none;cursor:pointer;position:relative}
-    .grab::before{content:"";position:absolute;left:50%;top:8px;width:40px;height:5px;margin-left:-20px;border-radius:3px;background:#D9D0C0}
+    .grab{display:block;width:100%;height:30px;margin-top:-4px;border:0;background:none;cursor:pointer;position:relative}
+    .grab::before{content:"";position:absolute;left:50%;top:12px;width:40px;height:5px;margin-left:-20px;border-radius:3px;background:#D9D0C0}
+    /* the search bar says what the app is: no title on phones (keeps more map visible) */
+    .titlebar{display:none}
+    .sub{margin:0 0 8px}
+    .sub:not(:has(#ohnote:not(:empty))){display:none}
+    /* panel content scrolls inside the sheet instead of being cut off */
+    .panel{overflow-y:auto;overscroll-behavior:contain}
+    #list{overflow:visible}
+    /* search: results drop down under the search bar, clear of the keyboard */
+    body.searching .panel, body.searching .timebar{display:none}
+    body.searching .sresults{display:block;margin-top:8px;background:var(--base);border-radius:var(--r-md);box-shadow:var(--float);
+      max-height:calc(var(--vvh, 100dvh) - 150px - var(--st));overflow-y:auto;overscroll-behavior:contain;padding:4px 6px}
+    .sresults .hint{padding:14px}
     h1{font-size:17px}
     .sub{margin-bottom:10px}
     .panel:not(.expanded) .more{display:none}
     /* minimised sheet: title + one line */
     .panel.mini .sub,.panel.mini #best,.panel.mini #cards,.panel.mini .skycheck{display:none}
-    .panel.mini .peek{display:flex;align-items:center;gap:8px;margin:6px 0 4px;font-size:15px;color:var(--muted);cursor:pointer;white-space:nowrap;overflow:hidden}
+    .panel.mini header{padding-bottom:12px}
+    .panel.mini .peek{display:flex;align-items:center;gap:8px;margin:0 0 2px;font-size:15px;color:var(--muted);cursor:pointer;white-space:nowrap;overflow:hidden}
     .panel.mini .peek b{color:var(--ink);overflow:hidden;text-overflow:ellipsis}
     .peek .pd{flex:none;width:10px;height:10px;border-radius:50%;background:var(--sun);box-shadow:0 0 0 3px var(--sun-soft)}
     .panel{touch-action:pan-x pan-y}
     .panel:not(.expanded) #count{display:none}
-    .searchbox{position:fixed;z-index:4;top:10px;left:10px;right:10px;margin:0}
+    .searchbox{position:fixed;z-index:4;top:calc(10px + var(--st));left:calc(10px + var(--sl));right:calc(10px + var(--sr));margin:0}
     .searchbox .field #search{background:#fff;box-shadow:var(--float)}
     #nearme{width:46px;padding:0;justify-content:center;box-shadow:var(--float)}
     #nearme span{display:none}
     .searchbox .chips{margin-top:8px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
     .searchbox .chips::-webkit-scrollbar{display:none}
     .chip{box-shadow:0 2px 8px rgba(31,26,20,.10);border-color:transparent}
-    .maplibregl-ctrl-top-right{top:108px !important}
+    .maplibregl-ctrl-top-right{top:calc(108px + var(--st)) !important;right:var(--sr) !important}
     .skycheck{order:9;padding:9px 16px}
-    .timebar{bottom:10px;padding:10px 14px 10px;width:calc(100% - 16px)}
+    .timebar{bottom:calc(10px + var(--sb));padding:10px 14px 10px;width:calc(100% - 16px - var(--sl) - var(--sr))}
     .tb-top{gap:10px;margin-bottom:2px;flex-wrap:wrap}
     .clock{font-size:24px;min-width:66px}
     .quick{margin-left:auto}
@@ -218,6 +254,7 @@
         <button class="chip on" data-f="cafe" aria-pressed="true">🍺 Cafés</button>
         <button class="chip" data-f="openOnly" aria-pressed="false">Open now</button>
       </div>
+      <div id="sresults" class="sresults" role="listbox" aria-label="Search results"></div>
     </div>
     <div id="count">Loading the map…</div>
   </header>
@@ -1144,6 +1181,8 @@ function renderList(){
     const hits = S.cafes.filter(c => kindOn(c) && c.norm.includes(q))
       .sort((a, b) => (a.norm.startsWith(q) ? 0 : 1) - (b.norm.startsWith(q) ? 0 : 1) || a.name.localeCompare(b.name)).slice(0, 40);
     $('#count').innerHTML = `<b>${hits.length}</b> place${hits.length === 1 ? '' : 's'} match “${esc($('#search').value.trim())}”`;
+    const shtml = hits.length ? hits.map(c => `<div class="cafe" data-id="${c.id}"><span class="ic">${kindIcon(c)}</span><span class="n">${esc(c.name)}</span>${statusShort(c)}</div>`).join('') : '<div class="hint">No café or coffee bar with that name.</div>';
+    if (shtml !== lastSres){ $('#sresults').innerHTML = shtml; lastSres = shtml; }
     html = hits.length ? hits.map(c => `<div class="cafe" data-id="${c.id}"><span class="ic">${kindIcon(c)}</span><span class="n">${esc(c.name)}</span>${r.me ? `<span class="u dim">${walkMin(c, r)} min · </span>` : ''}${statusShort(c)}</div>`).join('')
       : '<div class="hint">No café or coffee bar with that name. Check the spelling, or switch on both filters.</div>';
   } else if (map.getZoom() < TZOOM - 0.5 && !(S.me && S.me.inside)){
@@ -1167,11 +1206,24 @@ function renderList(){
   const top = (S._ranked || [])[0];
   const peek = top ? `<span class="pd"></span><b>${esc(top.c.name)}</b> · sun until ${hhmm(sunnyUntil(top.c, S.idx))}` : (best ? 'No sunny spot right now · swipe up for more' : '');
   if (peek !== lastPeek){ $('#peek').innerHTML = peek; lastPeek = peek; }
-  const cards = (S._ranked || []).slice(1, 8).map(({ c, walk }) => `<div class="mini" data-id="${c.id}" role="button" tabindex="0"><div class="mi">${kindIcon(c)}</div><div class="mn">${esc(c.name)}</div><div class="md">Sun until ${hhmm(sunnyUntil(c, S.idx))}</div><div class="mw">${walk} min walk</div></div>`).join('');
+  const cards = (S._ranked || []).slice(1, 8).map(({ c, walk }) => `<div class="mini" data-id="${c.id}" role="button" tabindex="0"><div class="mn">${kindIcon(c)} ${esc(c.name)}</div><div class="md">Sun until ${hhmm(sunnyUntil(c, S.idx))}</div><div class="mw">${walk} min walk</div></div>`).join('');
   if (cards !== lastCards){ $('#cards').innerHTML = cards; lastCards = cards; }
   if (html !== lastListHtml){ $('#list').innerHTML = html; lastListHtml = html; }
 }
-let lastBest = '', lastCards = '', lastPeek = '';
+let lastBest = '', lastCards = '', lastPeek = '', lastSres = '';
+function updateSearching(){ document.body.classList.toggle('searching', isPhone() && $('#search').value.trim().length > 0 && !S._picked); }
+// on phones the search bar lives on its own layer (so hiding/swiping the sheet never moves it)
+(function(){
+  const sbox = $('.searchbox'), home = sbox.parentNode, anchor = $('#count');
+  const place = () => { if (isPhone()){ if (sbox.parentNode !== document.body) document.body.appendChild(sbox); } else if (sbox.parentNode !== home){ home.insertBefore(sbox, anchor); document.body.classList.remove('searching'); } };
+  queueMicrotask(() => { place(); if (window.matchMedia) window.matchMedia('(max-width:700px)').addEventListener('change', place); });
+})();
+$('#sresults').addEventListener('click', e => { const el = e.target.closest('.cafe'); if (!el) return; S._picked = true; document.body.classList.remove('searching'); $('#search').blur(); focusCafe(+el.dataset.id); });
+$('#search').addEventListener('input', () => { S._picked = false; updateSearching(); });
+$('#search').addEventListener('focus', () => { S._picked = false; updateSearching(); });
+$('#search').addEventListener('blur', () => setTimeout(() => { if (!$('#search').value.trim()) document.body.classList.remove('searching'); }, 150));
+// keep track of the visible height (shrinks when the keyboard is open)
+(function(){ const vv = window.visualViewport; if (!vv) return; const f = () => document.documentElement.style.setProperty('--vvh', vv.height + 'px'); vv.addEventListener('resize', f); f(); })();
 $('#cards').addEventListener('click', e => { const el = e.target.closest('[data-id]'); if (el) focusCafe(+el.dataset.id); });
 $('#best').addEventListener('click', e => { const el = e.target.closest('[data-id]'); if (el) focusCafe(+el.dataset.id); });
 $('#best').addEventListener('keydown', e => { if (e.key === 'Enter'){ const el = e.target.closest('[data-id]'); if (el) focusCafe(+el.dataset.id); } });
@@ -1248,7 +1300,7 @@ $('#peek').addEventListener('click', () => setSheetState('folded'));
     if (!t.lock && Math.hypot(dx, dy) > 8) t.lock = Math.abs(dy) > Math.abs(dx) ? 'v' : 'h';
     if (t.lock !== 'v'){ if (t.lock === 'h') t = null; return; }           // sideways: let the card row scroll
     const st = sheetState();
-    if (t.inList && (list.scrollTop > 0 || (dy < 0 && st === 'full'))){ t = null; panel.style.transform = ''; return; } // normal list scrolling
+    if (panel.scrollTop > 0 || (dy < 0 && st === 'full' && panel.scrollHeight > panel.clientHeight)){ t = null; panel.style.transform = ''; return; } // normal scrolling inside the sheet
     if ((dy < 0 && st === 'full') || (dy > 0 && st === 'mini')){ t.dy = 0; panel.style.transform = `translateY(${dy*0.15}px)`; e.preventDefault(); return; } // already at the end: small rubber band
     t.dy = dy;
     panel.style.transition = 'none';
@@ -1263,12 +1315,12 @@ $('#peek').addEventListener('click', () => setSheetState('folded'));
   };
   panel.addEventListener('touchend', end); panel.addEventListener('touchcancel', end);
 })();
-$('#search').addEventListener('focus', () => { if (isPhone()) setSheet(true); });
+$('#search').addEventListener('search', () => { if (!$('#search').value) { document.body.classList.remove('searching'); renderList(); } });
 
 let searchTimer = null;
 $('#search').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(renderList, 120); });
 $('#search').addEventListener('keydown', e => {
-  if (e.key === 'Escape'){ e.target.value = ''; renderList(); }
+  if (e.key === 'Escape'){ e.target.value = ''; document.body.classList.remove('searching'); e.target.blur(); renderList(); }
   if (e.key === 'Enter'){ const first = $('#list .cafe'); if (first) first.click(); }
 });
 $('#list').addEventListener('click', e => {
