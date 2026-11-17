@@ -47,6 +47,17 @@
   .sheet-btn{display:none}
   .peek{display:none}
   .sresults{display:none}
+  .place{display:none;order:2;padding:0 18px 16px}
+  .pl-top{display:flex;align-items:flex-start;gap:10px}
+  .pl-top > div{flex:1;min-width:0}
+  .pl-top h3{font-size:22px;font-weight:700;letter-spacing:-.01em;margin:2px 0 4px}
+  .pl-x{flex:none;width:34px;height:34px;border-radius:50%;border:0;background:var(--sand);font-size:16px;color:var(--ink);cursor:pointer}
+  .place .kind{font-size:13px;color:var(--muted);font-weight:500}
+  .place .pop-actions{margin:12px 0 4px}
+  .place .pop-actions a,.place .pop-actions button{padding:10px 16px;font-size:15px}
+  .place ul{margin:6px 0;padding-left:20px}
+  .pl-sun{margin:10px 0 2px;font-size:16px}
+  .pop-actions .rep{border:0 !important;background:none !important;padding:8px 4px !important;color:var(--muted) !important;font-weight:500 !important;text-decoration:underline;font-size:13px !important}
 
   /* best pick */
   #best .best{position:relative;margin:0 0 4px;padding:14px 52px 14px 16px;border-radius:var(--r-md);background:#fff;border:1.5px solid #FFD27A;cursor:pointer;
@@ -190,38 +201,7 @@
 
   /* ---------- phones ---------- */
   @media (max-width:700px){
-    .panel{top:auto;bottom:calc(150px + var(--sb));left:calc(8px + var(--sl));right:calc(8px + var(--sr));width:auto;max-height:calc(100% - 280px - var(--st) - var(--sb));border-radius:var(--r-lg)}
-    #cards{order:2;padding:0 16px 8px}
-    .panel.mini #cards{display:none}
-    .panel:not(.expanded):not(.mini){max-height:min(34dvh, calc(100% - 280px - var(--st) - var(--sb)))}
-    .skycheck{position:sticky;bottom:0;z-index:1;background:var(--base)}
-    #slider{margin-top:2px;height:24px}
-    .panel header{padding:6px 16px 10px}
-    .grab{display:block;width:100%;height:30px;margin-top:-4px;border:0;background:none;cursor:pointer;position:relative}
-    .grab::before{content:"";position:absolute;left:50%;top:12px;width:40px;height:5px;margin-left:-20px;border-radius:3px;background:#D9D0C0}
-    /* the search bar says what the app is: no title on phones (keeps more map visible) */
-    .titlebar{display:none}
-    .sub{margin:0 0 8px}
-    .sub:not(:has(#ohnote:not(:empty))){display:none}
-    /* panel content scrolls inside the sheet instead of being cut off */
-    .panel{overflow-y:auto;overscroll-behavior:contain}
-    #list{overflow:visible}
-    /* search: results drop down under the search bar, clear of the keyboard */
-    body.searching .panel, body.searching .timebar{display:none}
-    body.searching .sresults{display:block;margin-top:8px;background:var(--base);border-radius:var(--r-md);box-shadow:var(--float);
-      max-height:calc(var(--vvh, 100dvh) - 150px - var(--st));overflow-y:auto;overscroll-behavior:contain;padding:4px 6px}
-    .sresults .hint{padding:14px}
-    h1{font-size:17px}
-    .sub{margin-bottom:10px}
-    .panel:not(.expanded) .more{display:none}
-    /* minimised sheet: title + one line */
-    .panel.mini .sub,.panel.mini #best,.panel.mini .skycheck{display:none}
-    .panel.mini header{padding-bottom:12px}
-    .panel.mini .peek{display:flex;align-items:center;gap:8px;margin:0 0 2px;font-size:15px;color:var(--muted);cursor:pointer;white-space:nowrap;overflow:hidden}
-    .panel.mini .peek b{color:var(--ink);overflow:hidden;text-overflow:ellipsis}
-    .peek .pd{flex:none;width:10px;height:10px;border-radius:50%;background:var(--sun);box-shadow:0 0 0 3px var(--sun-soft)}
-    .panel{touch-action:pan-x pan-y}
-    .panel:not(.expanded) #count{display:none}
+    /* ----- layout: search on top, sheet above a slim time bar ----- */
     .searchbox{position:fixed;z-index:4;top:calc(10px + var(--st));left:calc(10px + var(--sl));right:calc(10px + var(--sr));margin:0}
     .searchbox .field #search{background:#fff;box-shadow:var(--float)}
     #nearme{width:46px;padding:0;justify-content:center;box-shadow:var(--float)}
@@ -229,16 +209,59 @@
     .searchbox .chips{margin-top:8px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
     .searchbox .chips::-webkit-scrollbar{display:none}
     .chip{box-shadow:0 2px 8px rgba(31,26,20,.10);border-color:transparent}
-    .maplibregl-ctrl-top-right{top:calc(108px + var(--st)) !important;right:var(--sr) !important}
-    .skycheck{order:9;padding:9px 16px}
-    .timebar{left:calc(8px + var(--sl));right:calc(8px + var(--sr));max-width:none;bottom:calc(10px + var(--sb));padding:10px 14px 10px}
+    .maplibregl-ctrl-top-right{display:none}                       /* pinch to zoom, 📍 sits next to search */
     .maplibregl-ctrl-bottom-left{bottom:auto !important;top:calc(108px + var(--st));left:var(--sl)}
     .maplibregl-ctrl-bottom-left .maplibregl-ctrl-attrib{max-width:calc(100vw - 80px)}
-    .tb-top{gap:10px;margin-bottom:2px;flex-wrap:wrap}
-    .clock{font-size:24px;min-width:66px}
+
+    .panel{top:auto;bottom:calc(var(--tbh, 64px) + 18px + var(--sb));left:calc(8px + var(--sl));right:calc(8px + var(--sr));width:auto;max-height:none;height:42dvh;
+      border-radius:var(--r-lg);overflow-y:auto;overscroll-behavior:contain;touch-action:pan-x pan-y;transition:height .28s cubic-bezier(.2,.8,.2,1)}
+    .panel.dragging{transition:none}
+    .panel header{padding:6px 16px 6px;position:sticky;top:0;z-index:2;background:var(--base)}
+    .grab{display:block;width:100%;height:30px;margin-top:-4px;border:0;background:none;cursor:pointer;position:relative}
+    .grab::before{content:"";position:absolute;left:50%;top:12px;width:40px;height:5px;margin-left:-20px;border-radius:3px;background:#D9D0C0}
+    .titlebar{display:none}
+    .sub{margin:0 0 8px}
+    .sub:not(:has(#ohnote:not(:empty))){display:none}
+    #count{margin:12px 0 0;font-size:14px}
+    #cards{order:2;padding:0 16px 8px}
+    #list{overflow:visible}
+    .panel:not(.expanded) .more{display:none}
+    .skycheck{order:9;position:sticky;bottom:0;z-index:2;background:var(--base);padding:9px 16px;border-top:1px solid var(--line)}
+
+    /* minimised: one line */
+    .panel.sheet-min #best,.panel.sheet-min #cards,.panel.sheet-min .skycheck,.panel.sheet-min #count,.panel.sheet-min .sub{display:none}
+    .panel.sheet-min{overflow:hidden}
+    .panel.sheet-min .peek{display:flex;align-items:center;gap:8px;margin:0 0 6px;font-size:15px;color:var(--muted);cursor:pointer;white-space:nowrap;overflow:hidden}
+    .panel.sheet-min .peek b{color:var(--ink);overflow:hidden;text-overflow:ellipsis}
+    .peek .pd{flex:none;width:10px;height:10px;border-radius:50%;background:var(--sun);box-shadow:0 0 0 3px var(--sun-soft)}
+
+    /* place details in the sheet (instead of a map popup) */
+    .panel.placing header > :not(.grab), .panel.placing > :not(header):not(#place){display:none !important}
+    .panel.placing #place{display:block}
+    .panel.placing.sheet-min #place > :not(.pl-top){display:none}
+    .panel.placing.sheet-min #place .kind{display:none}
+    .panel.placing.sheet-min .pl-top{align-items:center}
+    .panel.placing.sheet-min .pl-top h3{font-size:18px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .panel.placing.sheet-min .pl-x{width:30px;height:30px}
+    .panel.placing header{padding-bottom:0}
+
+    /* search: results drop down under the search bar, clear of the keyboard */
+    body.searching .panel, body.searching .timebar{display:none}
+    body.searching .sresults{display:block;margin-top:8px;background:var(--base);border-radius:var(--r-md);box-shadow:var(--float);
+      max-height:calc(var(--vvh, 100dvh) - 150px - var(--st));overflow-y:auto;overscroll-behavior:contain;padding:4px 6px}
+    .sresults .hint{padding:14px}
+
+    /* slim time bar: time + quick buttons; tap the time for the slider */
+    .timebar{left:calc(8px + var(--sl));right:calc(8px + var(--sr));max-width:none;bottom:calc(10px + var(--sb));padding:8px 10px 8px 14px}
+    .tb-top{gap:8px;margin-bottom:0;flex-wrap:wrap}
+    .clock{font-size:22px;min-width:0;display:flex;align-items:center;gap:4px;cursor:pointer;border-radius:10px;padding:2px 4px;margin-left:-4px}
+    .clock::after{content:"";width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg) translate(-2px,-2px);margin-left:4px;transition:transform .2s}
+    .timebar.open .clock::after{transform:rotate(-135deg) translate(-2px,-2px)}
     .quick{margin-left:auto}
-    .btn.q{padding:0 9px;font-size:13px;height:30px}
-    .sun-info{order:3;flex-basis:100%;font-size:12.5px}
+    .btn.q{padding:0 9px;font-size:13px;height:32px}
+    .timebar:not(.open) .sun-info,.timebar:not(.open) #slider,.timebar:not(.open) .cloudwrap{display:none}
+    .sun-info{order:3;flex-basis:100%;font-size:12.5px;margin-top:2px}
+    #slider{margin-top:4px;height:28px}
     .ticks{display:none}
     .maplibregl-popup-content{max-height:42vh}
   }
@@ -271,6 +294,7 @@
     <div id="best"></div>
     <div id="count">Loading the map…</div>
   </header>
+  <div id="place" class="place" aria-live="polite"></div>
   <div id="cards" aria-label="More sunny spots"></div>
   <div id="skycheck" class="skycheck" aria-live="polite"></div>
   <div id="list" class="more"></div>
@@ -1110,7 +1134,7 @@ map.on('load', () => {
   pushCafes(true);
   // start at the visitor's position if they allowed location before
   try { navigator.permissions && navigator.permissions.query({ name:'geolocation' }).then(p => { if (p.state === 'granted') geo.trigger(); }).catch(() => {}); } catch(e){}
-  if (isPhone()) setSheet(false);
+  if (isPhone()) setSheetState('folded');
   requestTiles();
   loadWeather(); setInterval(loadWeather, 30*60*1000);
 });
@@ -1250,9 +1274,10 @@ $('#best').addEventListener('click', e => { const el = e.target.closest('[data-i
 $('#best').addEventListener('keydown', e => { if (e.key === 'Enter'){ const el = e.target.closest('[data-id]'); if (el) focusCafe(+el.dataset.id); } });
 function focusCafe(id, zoomIn = true){
   const c = S.cafes[id]; if (!c) return;
-  if (isPhone()) setSheet(false);
-  // keep the place (and its popup, which opens above it) clear of the panel and the time bar
-  const pad = isPhone() ? { top:Math.min(320, window.innerHeight*0.45), bottom:200, left:0, right:0 } : { left:340, bottom:120, top:200, right:40 };
+  if (isPhone() && sheetState() !== 'folded') setSheetState('folded');
+  // keep the place clear of the panel and the time bar (on phones: in the map area above the sheet)
+  const ph = isPhone() ? { top:(($('.searchbox').getBoundingClientRect().bottom) || 120) + 20, bottom:window.innerHeight - $('.panel').getBoundingClientRect().top + 20 } : null;
+  const pad = ph ? { top:ph.top, bottom:Math.max(ph.bottom, window.innerHeight*0.5), left:20, right:20 } : { left:420, bottom:180, top:120, right:40 };
   map.easeTo({ center:[c.lng, c.lat], zoom:zoomIn ? Math.max(map.getZoom(), 17.2) : map.getZoom(), duration:700, padding:pad });
   highlight(c);
   openPopup(c.id);
@@ -1293,45 +1318,71 @@ function reportUrl(c){
   return `https://github.com/LoreOpdeBeeck/sunnyspots/issues/new?title=${encodeURIComponent('Wrong sun/shade: ' + c.name)}&body=${encodeURIComponent(body)}&labels=feedback`;
 }
 const isPhone = () => window.matchMedia && window.matchMedia('(max-width:700px)').matches;
-/* ---------- phone sheet: three positions, swipe or tap the handle ---------- */
+/* ---------- phone sheet (Google Maps style): follows your finger, snaps to minimised / half / full ---------- */
 const SHEET = ['mini', 'folded', 'full'];
-function sheetState(){ const p = $('.panel'); return p.classList.contains('expanded') ? 'full' : p.classList.contains('mini') ? 'mini' : 'folded'; }
+function sheetState(){ const p = $('.panel'); return p.classList.contains('expanded') ? 'full' : p.classList.contains('sheet-min') ? 'mini' : 'folded'; }
+function snapHeights(){
+  const panel = $('.panel'), sb = $('.searchbox').getBoundingClientRect();
+  const bottom = panel.getBoundingClientRect().bottom;
+  const full = Math.max(160, bottom - sb.bottom - 10);
+  return { mini:84, folded:Math.min(Math.round(window.innerHeight*0.42), full), full };
+}
+function applySheetHeight(st){
+  const panel = $('.panel');
+  if (!isPhone()){ panel.style.height = ''; return; }
+  panel.style.height = snapHeights()[st || sheetState()] + 'px';
+}
 function setSheetState(st){
   const p = $('.panel');
-  p.classList.toggle('expanded', st === 'full'); p.classList.toggle('mini', st === 'mini');
+  p.classList.toggle('expanded', st === 'full'); p.classList.toggle('sheet-min', st === 'mini');
+  if (st !== 'full') p.scrollTop = 0;
   $('#grab').setAttribute('aria-expanded', st !== 'mini');
   $('#grab').setAttribute('aria-label', st === 'full' ? 'Fold the list' : 'Show more');
+  applySheetHeight(st);
 }
 function setSheet(open){ setSheetState(open ? 'full' : 'folded'); }
 function stepSheet(dir){ const i = SHEET.indexOf(sheetState()); setSheetState(SHEET[Math.max(0, Math.min(SHEET.length - 1, i + dir))]); }
 $('#sheet').addEventListener('click', () => setSheet(sheetState() !== 'full'));
 $('#grab').addEventListener('click', () => setSheetState(sheetState() === 'full' ? 'folded' : sheetState() === 'mini' ? 'folded' : 'full'));
 $('#peek').addEventListener('click', () => setSheetState('folded'));
+window.addEventListener('resize', () => applySheetHeight());
 (function swipeSheet(){
-  const panel = $('.panel'), list = $('#list');
+  const panel = $('.panel');
   let t = null;
   panel.addEventListener('touchstart', e => {
     if (!isPhone() || e.touches.length !== 1) return;
     const p = e.touches[0];
-    t = { x:p.clientX, y:p.clientY, dy:0, lock:null, inList:!!e.target.closest('#list') };
+    t = { x:p.clientX, y:p.clientY, t0:performance.now(), h0:panel.offsetHeight, dy:0, lock:null, last:[] };
   }, { passive:true });
   panel.addEventListener('touchmove', e => {
     if (!t) return;
     const p = e.touches[0], dx = p.clientX - t.x, dy = p.clientY - t.y;
     if (!t.lock && Math.hypot(dx, dy) > 8) t.lock = Math.abs(dy) > Math.abs(dx) ? 'v' : 'h';
-    if (t.lock !== 'v'){ if (t.lock === 'h') t = null; return; }           // sideways: let the card row scroll
+    if (t.lock !== 'v'){ if (t.lock === 'h') t = null; return; }
     const st = sheetState();
-    if (panel.scrollTop > 0 || (dy < 0 && st === 'full' && panel.scrollHeight > panel.clientHeight)){ t = null; panel.style.transform = ''; return; } // normal scrolling inside the sheet
-    if ((dy < 0 && st === 'full') || (dy > 0 && st === 'mini')){ t.dy = 0; panel.style.transform = `translateY(${dy*0.15}px)`; e.preventDefault(); return; } // already at the end: small rubber band
-    t.dy = dy;
-    panel.style.transition = 'none';
-    panel.style.transform = `translateY(${Math.max(-60, dy)}px)`;
+    if (!t.dragging){
+      // let the content scroll when it can: scrolled down already, or pulling up on a full sheet
+      if (panel.scrollTop > 0 || (dy < 0 && st === 'full')){ t = null; return; }
+      t.dragging = true; panel.classList.add('dragging');
+    }
+    const snaps = snapHeights();
+    let h = t.h0 - dy;
+    if (h > snaps.full) h = snaps.full + (h - snaps.full)*0.2;      // rubber band past the ends
+    if (h < snaps.mini) h = snaps.mini - (snaps.mini - h)*0.2;
+    panel.style.height = h + 'px';
+    t.dy = dy; t.last.push([performance.now(), p.clientY]); if (t.last.length > 5) t.last.shift();
     e.preventDefault();
   }, { passive:false });
   const end = () => {
-    if (!t) return;
-    panel.style.transition = 'transform .18s ease-out'; panel.style.transform = '';
-    if (t.dy > 45) stepSheet(-1); else if (t.dy < -45) stepSheet(1);
+    if (!t || !t.dragging){ t = null; return; }
+    panel.classList.remove('dragging');
+    const snaps = snapHeights(), h = panel.offsetHeight;
+    const L = t.last, v = L.length > 1 ? (L[L.length-1][1] - L[0][1]) / Math.max(1, L[L.length-1][0] - L[0][0]) : 0; // px per ms, + = down
+    let target;
+    if (v < -0.45) target = SHEET.find(s => snaps[s] > h + 10) || 'full';            // quick flick up
+    else if (v > 0.45) target = [...SHEET].reverse().find(s => snaps[s] < h - 10) || 'mini'; // quick flick down
+    else target = SHEET.reduce((a, s) => Math.abs(snaps[s] - h) < Math.abs(snaps[a] - h) ? s : a, 'folded');
+    setSheetState(target);
     t = null;
   };
   panel.addEventListener('touchend', end); panel.addEventListener('touchcancel', end);
@@ -1356,15 +1407,15 @@ let popup = null, popupId = null;
 function hoursHtml(c){
   const slot = S.slots[S.idx], op = isOpenNow(c);
   if (op === -1) return `<div class="oh">${c.oh ? 'Opening hours: ' + esc(c.oh) : 'Opening hours unknown'}</div>`;
-  if (op === 1){ const u = openUntil(c.hours, slot.dow, slot.min); return `<div class="oh open">Open${u != null && u !== 0 ? ` until ${fmtMin(u)}` : u === 0 ? ' until midnight' : ''}</div>`; }
-  const nx = opensNext(c.hours, slot.dow, slot.min);
+  if (op === 1){ const u = c.hours ? openUntil(c.hours, slot.dow, slot.min) : null; return `<div class="oh open">Open${u != null && u !== 0 ? ` until ${fmtMin(u)}` : u === 0 ? ' until midnight' : ''}</div>`; }
+  const nx = c.hours ? opensNext(c.hours, slot.dow, slot.min) : null;
   return `<div class="oh closed">Closed at ${hhmm(slot.t)}${nx != null ? ` · opens ${fmtMin(nx)}` : ''}</div>`;
 }
 function openPopup(id, refreshOnly){
   const c = S.cafes[id]; if (!c) return;
-  let body;
+  let body, bodyNow;
   if (!c.ready){
-    body = '<div class="now-shade">Checking the sun here…</div>';
+    body = bodyNow = '<div class="now-shade">Checking the sun here…</div>';
   } else {
     const periods = []; let s0 = -1;
     for (let i = S.first; i <= S.last + 1; i++){
@@ -1373,14 +1424,26 @@ function openPopup(id, refreshOnly){
       if (!on && s0 >= 0){ periods.push(`${hhmm(S.slots[s0].t)}–${hhmm(S.slots[i].t)}`); s0 = -1; }
     }
     const ns = nextSun(c, S.idx), w = S.slots[S.idx].wx;
-    body = (c.st[S.idx] ? `<div class="now-sun">☀ In the sun until ${hhmm(sunnyUntil(c, S.idx))}</div>` : `<div class="now-shade">In the shade${ns ? ` · sun again at ${hhmm(ns)}` : ''}</div>`)
-      + (w ? `<div style="color:#6b6f7a">${skyLabel(w)} at ${hhmm(S.slots[S.idx].t)}${w.cc != null && !w.user ? ` · forecast ${w.cc}% cloud` : ''}</div>` : '')
-      + (periods.length ? `<div style="margin-top:6px;color:#6b6f7a">In direct sun today (if no clouds):</div><ul>${periods.map(p => `<li>${p}</li>`).join('')}</ul>` : '<div style="margin-top:6px;color:#6b6f7a">No direct sun here today.</div>');
+    bodyNow = (c.st[S.idx] ? `<div class="now-sun">☀ In the sun until ${hhmm(sunnyUntil(c, S.idx))}</div>` : `<div class="now-shade">In the shade${ns ? ` · sun again at ${hhmm(ns)}` : ''}</div>`)
+      + (w ? `<div style="color:#6b6f7a">${skyLabel(w)} at ${hhmm(S.slots[S.idx].t)}${w.cc != null && !w.user ? ` · forecast ${w.cc}% cloud` : ''}</div>` : '');
+    body = bodyNow + (periods.length ? `<div style="margin-top:6px;color:#6b6f7a">In direct sun today (if no clouds):</div><ul>${periods.map(p => `<li>${p}</li>`).join('')}</ul>` : '<div style="margin-top:6px;color:#6b6f7a">No direct sun here today.</div>');
   }
   const r = refPoint();
   const extra = r.me ? `<div class="oh">${walkMin(c, r)} min walk</div>` : '';
   const gm = `https://www.google.com/maps/dir/?api=1&destination=${c.lat0},${c.lng0}&travelmode=walking`;
-  const html = `<div class="kind">${kindIcon(c)} ${kindWord(c)}</div><h3>${esc(c.name)}</h3>${hoursHtml(c)}${extra}${body}<div class="pop-actions"><a href="${gm}" target="_blank" rel="noopener">Walk there</a><button type="button" data-share="${c.id}">Share</button><a href="${reportUrl(c)}" target="_blank" rel="noopener">Wrong? Report it</a><span class="msg" aria-live="polite"></span></div><div class="fine">Sun is estimated from building shapes and heights. Trees and awnings are not included.</div>`;
+  const actions = `<div class="pop-actions"><a href="${gm}" target="_blank" rel="noopener">Walk there</a><button type="button" data-share="${c.id}">Share</button><a class="rep" href="${reportUrl(c)}" target="_blank" rel="noopener">Wrong? Report it</a><span class="msg" aria-live="polite"></span></div>`;
+  const fine = '<div class="fine">Sun is estimated from building shapes and heights. Trees and awnings are not included.</div>';
+  if (isPhone()){
+    // Google Maps style: details in the bottom sheet, actions right under the name
+    $('#place').innerHTML = `<div class="pl-top"><div><div class="kind">${kindIcon(c)} ${kindWord(c)}</div><h3>${esc(c.name)}</h3></div><button type="button" class="pl-x" aria-label="Back to the list">✕</button></div>${hoursHtml(c)}${extra}<div class="pl-sun">${bodyNow}</div>${actions}${body.slice(bodyNow.length)}${fine}`;
+    if (refreshOnly) return;
+    if (popup){ popup.remove(); popup = null; }
+    popupId = id;
+    $('.panel').classList.add('placing'); $('.panel').scrollTop = 0;
+    if (sheetState() === 'mini') setSheetState('folded');
+    return;
+  }
+  const html = `<div class="kind">${kindIcon(c)} ${kindWord(c)}</div><h3>${esc(c.name)}</h3>${hoursHtml(c)}${extra}${body}${actions}${fine}`;
   if (refreshOnly){ if (popup && popup.isOpen()) popup.setHTML(html); return; }
   if (popup) popup.remove();
   popupId = id;
@@ -1389,6 +1452,20 @@ function openPopup(id, refreshOnly){
 }
 
 document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-share]'); if (b) shareCafe(+b.dataset.share); });
+function closePlace(){
+  $('.panel').classList.remove('placing'); popupId = null; clearHighlight();
+  try { history.replaceState(null, '', location.pathname + location.search); } catch(e){}
+}
+document.addEventListener('click', e => { if (e.target.closest && e.target.closest('.pl-x')) closePlace(); });
+
+/* ---------- slim time bar on phones: tap the time to show the slider ---------- */
+$('#clock').setAttribute('role', 'button'); $('#clock').setAttribute('tabindex', '0'); $('#clock').setAttribute('aria-label', 'Show the time slider');
+$('#clock').addEventListener('click', () => { if (isPhone()) $('.timebar').classList.toggle('open'); });
+(function(){
+  const tb = $('.timebar');
+  const f = () => { document.documentElement.style.setProperty('--tbh', tb.offsetHeight + 'px'); applySheetHeight(); };
+  if (window.ResizeObserver) new ResizeObserver(f).observe(tb); f();
+})();
 
 /* ---------- controls ---------- */
 let raf = null;
