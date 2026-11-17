@@ -156,7 +156,7 @@
       <li><span class="sw shadow"></span> Building shadow</li>
       <li><span class="sw me"></span> You</li>
       <li><span class="sw strip"></span> Sky through the day: yellow = clear, grey = cloudy. Hatched = already past.</li>
-      <li>⛱ Has a terrace · ☕ Coffee bar · 🍺 Café</li>
+      <li>☕ Coffee bar · 🍺 Café</li>
     </ul>
   </details>
 </div>
@@ -1039,9 +1039,9 @@ function score(c, r, walk){
   const i = S.idx, open = isOpenNow(c);
   if (!c.st[i] || open === 0) return -Infinity;
   const left = Math.min((sunnyUntil(c, i) - S.slots[i].t)/60000, 150);
-  return left*(0.4 + 0.6*clearNow()) - (r.me ? 2.2 : 0.8)*walk + (c.t === 1 ? 5 : 0) + (open === 1 ? 4 : 0);
+  return left*(0.4 + 0.6*clearNow()) - (r.me ? 2.2 : 0.8)*walk + (open === 1 ? 4 : 0);
 }
-const terraceIcon = c => c.t === 1 ? ' <span title="Has a terrace">⛱</span>' : '';
+const terraceIcon = () => '';
 function bestCard(r, ranked, cands){
   const slot = S.slots[S.idx], when = Math.abs(slot.t - Date.now()) < 10*60000 ? 'now' : `at ${hhmm(slot.t)}`;
   if (slot.sun.alt < MIN_ALT) return `<div class="best muted">The sun is down ${when === 'now' ? 'right now' : when}. Slide to daytime to find a sunny spot.</div>`;
@@ -1178,10 +1178,10 @@ function openPopup(id, refreshOnly){
     const ns = nextSun(c, S.idx), w = S.slots[S.idx].wx;
     body = (c.st[S.idx] ? `<div class="now-sun">☀ In the sun until ${hhmm(sunnyUntil(c, S.idx))}</div>` : `<div class="now-shade">In the shade${ns ? ` · sun again at ${hhmm(ns)}` : ''}</div>`)
       + (w ? `<div style="color:#6b6f7a">${skyLabel(w)} at ${hhmm(S.slots[S.idx].t)}${w.cc != null && !w.user ? ` · forecast ${w.cc}% cloud` : ''}</div>` : '')
-      + (periods.length ? `<div style="margin-top:6px;color:#6b6f7a">Terrace in direct sun today (if no clouds):</div><ul>${periods.map(p => `<li>${p}</li>`).join('')}</ul>` : '<div style="margin-top:6px;color:#6b6f7a">No direct sun on the terrace today.</div>');
+      + (periods.length ? `<div style="margin-top:6px;color:#6b6f7a">In direct sun today (if no clouds):</div><ul>${periods.map(p => `<li>${p}</li>`).join('')}</ul>` : '<div style="margin-top:6px;color:#6b6f7a">No direct sun here today.</div>');
   }
   const r = refPoint();
-  const extra = `<div class="oh">${c.t === 1 ? '⛱ Has a terrace' : c.t === 0 ? 'No terrace listed' : 'Terrace: unknown'}${r.me ? ` · ${walkMin(c, r)} min walk` : ''}</div>`;
+  const extra = r.me ? `<div class="oh">${walkMin(c, r)} min walk</div>` : '';
   const gm = `https://www.google.com/maps/dir/?api=1&destination=${c.lat0},${c.lng0}&travelmode=walking`;
   const html = `<div class="kind">${kindIcon(c)} ${kindWord(c)}</div><h3>${esc(c.name)}</h3>${hoursHtml(c)}${extra}${body}<div class="pop-actions"><a href="${gm}" target="_blank" rel="noopener">Walk there</a><button type="button" data-share="${c.id}">Share</button><a href="${reportUrl(c)}" target="_blank" rel="noopener">Wrong? Report it</a><span class="msg" aria-live="polite"></span></div><div class="fine">Sun is estimated from building shapes and heights. Trees and awnings are not included.</div>`;
   if (refreshOnly){ if (popup && popup.isOpen()) popup.setHTML(html); return; }
