@@ -47,6 +47,15 @@
   .sheet-btn{display:none}
   .peek{display:none}
   .sresults{display:none}
+  .recenter{display:none}
+  .sk{height:12px;border-radius:6px;margin:5px 0;background:linear-gradient(90deg,#efe7d9 25%,#f7f1e6 50%,#efe7d9 75%);background-size:200% 100%;animation:shimmer 1.2s infinite linear}
+  .sk.big{height:20px;margin:8px 0}
+  .sk.w40{width:40%} .sk.w60{width:60%} .sk.w70{width:70%} .sk.w80{width:80%}
+  .best.skel{cursor:default;border-color:var(--line) !important;box-shadow:none !important}
+  .best.skel::after{display:none}
+  .mini.skel .ic{background:#efe7d9}
+  .finding{color:var(--muted)}
+  @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
   .place{display:none;order:2;padding:0 18px 16px}
   .pl-top{display:flex;align-items:flex-start;gap:10px}
   .pl-top > div{flex:1;min-width:0}
@@ -210,6 +219,11 @@
     .searchbox .chips::-webkit-scrollbar{display:none}
     .chip{box-shadow:0 2px 8px rgba(31,26,20,.10);border-color:transparent}
     .maplibregl-ctrl-top-right{display:none}                       /* pinch to zoom, 📍 sits next to search */
+    .recenter{display:grid;place-items:center;position:fixed;z-index:3;right:calc(14px + var(--sr));width:46px;height:46px;border-radius:50%;border:0;background:#fff;color:var(--ink);
+      box-shadow:var(--float);cursor:pointer;top:var(--fab-top, 60%);transition:opacity .2s}
+    .recenter svg{width:22px;height:22px}
+    .recenter.on{color:var(--me)}
+    .recenter.hide, body.searching .recenter{opacity:0;pointer-events:none}
     .maplibregl-ctrl-bottom-left{bottom:auto !important;top:calc(108px + var(--st));left:var(--sl)}
     .maplibregl-ctrl-bottom-left .maplibregl-ctrl-attrib{max-width:calc(100vw - 80px)}
 
@@ -311,6 +325,7 @@
     </ul>
   </details>
 </div>
+<button id="recenter" class="recenter" aria-label="Back to my location" title="Back to my location"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/></svg></button>
 <div class="timebar">
   <div class="tb-top">
     <div class="clock" id="clock">--:--</div>
@@ -735,6 +750,8 @@ geo.on('geolocate', pos => {
   S.me = { lng, lat, inside, x:(mercX(lng) - ORIGIN.ox)/ORIGIN.mpu, y:-(mercY(lat) - ORIGIN.oy)/ORIGIN.mpu };
   $('#nearme').classList.add('on');
   if (!inside && first) $('#ohnote').textContent = '· you seem to be outside Antwerp';
+  if (first && inside) requestTiles();
+  syncFab();
   scheduleList();
 });
 geo.on('error', () => { $('#nearme').classList.remove('on'); $('#count').innerHTML = '<span style="color:#c2410c">Your location is not available. Allow location access in your browser, or search instead.</span>'; });
@@ -1025,15 +1042,31 @@ worker.onmessage = e => {
   if (changed) pushCafes(true);
   map.triggerRepaint();
 };
-function updateLoading(){ $('#loading').textContent = inflight > 0 ? 'Loading buildings…' : ''; }
+function updateLoading(){ $('#loading').textContent = inflight > 0 ? 'Loading buildings…' : ''; if (inflight === 0) scheduleList(); }
+function tilesAround(lng, lat, radiusM){
+  const n = 1 << TZOOM, dLat = radiusM/110540, dLng = radiusM/(111320*Math.cos(lat*RAD));
+  return { x1:Math.floor(mercX(lng - dLng)*n), x2:Math.floor(mercX(lng + dLng)*n), y1:Math.floor(mercY(lat + dLat)*n), y2:Math.floor(mercY(lat - dLat)*n) };
+}
 function requestTiles(){
-  if (!S.tileUrl || map.getZoom() < TZOOM - 0.5) return;
-  const b = map.getBounds(), n = 1 << TZOOM;
-  const x1 = Math.floor(mercX(b.getWest() - 0.004)*n), x2 = Math.floor(mercX(b.getEast() + 0.004)*n);
-  const y1 = Math.floor(mercY(b.getNorth() + 0.003)*n), y2 = Math.floor(mercY(b.getSouth() - 0.003)*n);
-  const cx = (x1 + x2)/2, cy = (y1 + y2)/2, list = [];
-  for (let x = x1; x <= x2; x++) for (let y = y1; y <= y2; y++){ const key = TZOOM + '/' + x + '/' + y; if (!S.tiles.has(key)) list.push({ x, y, key, d:(x-cx)**2 + (y-cy)**2 }); }
-  list.sort((a, b) => a.d - b.d);
+  if (!S.tileUrl) return;
+  const n = 1 << TZOOM, want = new Map();
+  const add = (box, cx, cy, prio) => {
+    for (let x = box.x1; x <= box.x2; x++) for (let y = box.y1; y <= box.y2; y++){
+      const key = TZOOM + '/' + x + '/' + y; if (S.tiles.has(key)) continue;
+      const d = (x + 0.5 - cx)**2 + (y + 0.5 - cy)**2 + prio;
+      if (!want.has(key) || want.get(key).d > d) want.set(key, { x, y, key, d });
+    }
+  };
+  // 1) around you (first), 2) around the map centre, at any zoom — so the list never stays empty
+  if (S.me && S.me.inside) add(tilesAround(S.me.lng, S.me.lat, 1300), mercX(S.me.lng)*n, mercY(S.me.lat)*n, 0);
+  const c = map.getCenter();
+  add(tilesAround(c.lng, c.lat, 900), mercX(c.lng)*n, mercY(c.lat)*n, 0.5);
+  // 3) everything in view when zoomed in to street level
+  if (map.getZoom() >= TZOOM - 0.5){
+    const b = map.getBounds();
+    add({ x1:Math.floor(mercX(b.getWest() - 0.004)*n), x2:Math.floor(mercX(b.getEast() + 0.004)*n), y1:Math.floor(mercY(b.getNorth() + 0.003)*n), y2:Math.floor(mercY(b.getSouth() - 0.003)*n) }, mercX(c.lng)*n, mercY(c.lat)*n, 1);
+  }
+  const list = [...want.values()].sort((a, b) => a.d - b.d);
   for (const t of list.slice(0, 30)){
     S.tiles.set(t.key, 'loading'); inflight++;
     worker.postMessage({ type:'tile', key:t.key, z:TZOOM, x:t.x, y:t.y, url:S.tileUrl.replace('{z}', TZOOM).replace('{x}', t.x).replace('{y}', t.y) });
@@ -1185,6 +1218,7 @@ function refPoint(){
 const walkMin = (c, r) => Math.max(1, Math.round(Math.hypot(c.x - r.x, c.y - r.y)*1.3/WALK_M_PER_MIN));
 function candidates(r){
   if (r.me) return S.cafes.filter(c => c.ready && passes(c) && Math.hypot(c.x - r.x, c.y - r.y) < 1500);
+  if (map.getZoom() < TZOOM - 0.5) return S.cafes.filter(c => c.ready && passes(c) && Math.hypot(c.x - r.x, c.y - r.y) < 1200);
   const vb = map.getBounds();
   return S.cafes.filter(c => c.ready && passes(c) && vb.contains([c.lng, c.lat]));
 }
@@ -1225,9 +1259,6 @@ function renderList(){
     if (shtml !== lastSres){ $('#sresults').innerHTML = shtml; lastSres = shtml; }
     html = hits.length ? hits.map(c => `<div class="cafe" data-id="${c.id}"><span class="ic">${kindIcon(c)}</span><span class="n">${esc(c.name)}</span>${r.me ? `<span class="u dim">${walkMin(c, r)} min · </span>` : ''}${statusShort(c)}</div>`).join('')
       : '<div class="hint">No café or coffee bar with that name. Check the spelling, or switch on both filters.</div>';
-  } else if (map.getZoom() < TZOOM - 0.5 && !(S.me && S.me.inside)){
-    $('#count').textContent = 'Zoom in to see cafés, coffee bars and shadows.';
-    html = '<div class="hint">Or tap 📍 Near me, or search for a place by name.</div><button class="btn zoomin" id="zoomin">Zoom in here</button>';
   } else {
     const r = refPoint(), cands = candidates(r);
     const ranked = cands.map(c => ({ c, walk:walkMin(c, r) })).map(o => ({ ...o, s:score(o.c, r, o.walk) }))
@@ -1235,17 +1266,24 @@ function renderList(){
     best = bestCard(r, ranked, cands); S._ranked = ranked;
     const sunDown = S.slots[S.idx].sun.alt < MIN_ALT;
     const noun = F.coffee && F.cafe ? 'places' : F.coffee ? 'coffee bars' : F.cafe ? 'cafés' : 'places';
-    const where = r.me ? 'within 15 min walk' : 'in view';
+    const where = r.me ? 'within 15 min walk' : map.getZoom() < TZOOM - 0.5 ? 'near the map centre' : 'in view';
     $('#count').innerHTML = !F.coffee && !F.cafe ? 'Switch on Coffee bars or Cafés to see places.'
       : sunDown ? `${cands.length} ${noun} ${where}`
       : `<b>${ranked.length}</b> of ${cands.length} ${noun} ${where} in the sun${S.slots[S.idx].wx ? ` · ${skyLabel(S.slots[S.idx].wx)}` : ''}`;
- html = (ranked.length ? '' : `<div class="hint">${sunDown ? '' : cands.length ? 'Try another hour, move the map or change the filters.' : inflight ? 'Loading…' : 'Nothing here. Move the map to a busier street, or change the filters.'}</div>`);
+ const loading = !ranked.length && (inflight > 0 || !S.slots.length || S.cafes.length === 0);
+    if (loading && !sunDown){
+      best = `<div class="best skel"><div class="sk w40"></div><div class="sk w70 big"></div><div class="sk w60"></div></div>`;
+      $('#count').innerHTML = '<span class="finding">Finding sunny spots…</span>';
+      html = '';
+      S._ranked = Array.from({ length:4 }, () => ({ skel:true }));
+    } else
+    html = (ranked.length ? '' : `<div class="hint">${sunDown ? '' : cands.length ? 'Try another hour, move the map or change the filters.' : 'No places here yet. Move the map to a busier street, or change the filters.'}</div>`);
   }
   if (best !== lastBest){ $('#best').innerHTML = best; lastBest = best; }
-  const top = (S._ranked || [])[0];
+  const top = (S._ranked || []).find(o => o.c);
   const peek = top ? `<span class="pd"></span><b>${esc(top.c.name)}</b> · sun until ${hhmm(sunnyUntil(top.c, S.idx))}` : (best ? 'No sunny spot right now · swipe up for more' : '');
   if (peek !== lastPeek){ $('#peek').innerHTML = peek; lastPeek = peek; }
-  const cards = (S._ranked || []).slice(1, 60).map(({ c, walk }) => `<div class="mini" data-id="${c.id}" role="button" tabindex="0"><span class="ic">${kindIcon(c)}</span><div class="mt"><div class="mn">${esc(c.name)}</div><div class="md">Sun until ${hhmm(sunnyUntil(c, S.idx))} · ${walk} min walk</div><div class="mw">${kindWord(c)} · ${openShort(c)}</div></div></div>`).join('');
+  const cards = (S._ranked || []).slice(1, 60).map(({ c, walk, skel }) => skel ? `<div class="mini skel"><span class="ic"></span><div class="mt"><div class="sk w60"></div><div class="sk w80"></div><div class="sk w40"></div></div></div>` : `<div class="mini" data-id="${c.id}" role="button" tabindex="0"><span class="ic">${kindIcon(c)}</span><div class="mt"><div class="mn">${esc(c.name)}</div><div class="md">Sun until ${hhmm(sunnyUntil(c, S.idx))} · ${walk} min walk</div><div class="mw">${kindWord(c)} · ${openShort(c)}</div></div></div>`).join('');
   if (cards !== lastCards){ $('#cards').innerHTML = cards; lastCards = cards; }
   if (html !== lastListHtml){ $('#list').innerHTML = html; lastListHtml = html; }
 }
@@ -1339,6 +1377,7 @@ function setSheetState(st){
   $('#grab').setAttribute('aria-expanded', st !== 'mini');
   $('#grab').setAttribute('aria-label', st === 'full' ? 'Fold the list' : 'Show more');
   applySheetHeight(st);
+  requestAnimationFrame(syncFab); setTimeout(syncFab, 320);
 }
 function setSheet(open){ setSheetState(open ? 'full' : 'folded'); }
 function stepSheet(dir){ const i = SHEET.indexOf(sheetState()); setSheetState(SHEET[Math.max(0, Math.min(SHEET.length - 1, i + dir))]); }
@@ -1369,7 +1408,7 @@ window.addEventListener('resize', () => applySheetHeight());
     let h = t.h0 - dy;
     if (h > snaps.full) h = snaps.full + (h - snaps.full)*0.2;      // rubber band past the ends
     if (h < snaps.mini) h = snaps.mini - (snaps.mini - h)*0.2;
-    panel.style.height = h + 'px';
+    panel.style.height = h + 'px'; syncFab();
     t.dy = dy; t.last.push([performance.now(), p.clientY]); if (t.last.length > 5) t.last.shift();
     e.preventDefault();
   }, { passive:false });
@@ -1457,6 +1496,23 @@ function closePlace(){
   try { history.replaceState(null, '', location.pathname + location.search); } catch(e){}
 }
 document.addEventListener('click', e => { if (e.target.closest && e.target.closest('.pl-x')) closePlace(); });
+
+/* ---------- re-center button: floats just above the sheet and moves with it ---------- */
+function syncFab(){
+  const fab = $('#recenter'); if (!fab || !isPhone()) return;
+  const top = $('.panel').getBoundingClientRect().top;
+  fab.style.setProperty('--fab-top', (top - 58) + 'px');
+  fab.classList.toggle('hide', sheetState() === 'full' || top - 58 < ($('.searchbox').getBoundingClientRect().bottom + 8));
+  fab.classList.toggle('on', !!(S.me && S.me.inside));
+}
+if (window.ResizeObserver) new ResizeObserver(syncFab).observe($('.panel'));
+window.addEventListener('resize', syncFab);
+$('#recenter').addEventListener('click', () => {
+  if (S.me && S.me.inside){
+    map.easeTo({ center:[S.me.lng, S.me.lat], zoom:Math.max(map.getZoom(), 16.5), duration:600 });
+    if (popupId != null && $('.panel').classList.contains('placing')) closePlace();
+  } else geo.trigger();
+});
 
 /* ---------- slim time bar on phones: tap the time to show the slider ---------- */
 $('#clock').setAttribute('role', 'button'); $('#clock').setAttribute('tabindex', '0'); $('#clock').setAttribute('aria-label', 'Show the time slider');
