@@ -37,7 +37,7 @@
   .panel{position:absolute;z-index:3;top:calc(16px + var(--st));left:calc(16px + var(--sl));width:380px;max-height:calc(100% - 160px - var(--st) - var(--sb));display:flex;flex-direction:column;
     background:var(--base);border-radius:var(--r-lg);box-shadow:var(--float);overflow:hidden}
   .panel header{order:1;padding:16px 18px 12px}
-  .panel{overflow-x:hidden}
+  .panel{overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}
   .grab{display:none}
   .titlebar{display:flex;align-items:center;justify-content:space-between;gap:8px}
   h1{font-size:19px;font-weight:700;letter-spacing:-.01em;margin:0;display:flex;gap:8px;align-items:center}
@@ -63,10 +63,12 @@
   .best-d{font-size:14px;color:var(--muted)}
 
   /* cards row (design B) */
-  #cards{display:none}
-  .v-cards #cards{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;margin:10px -18px 0;padding:0 18px 4px;scrollbar-width:none}
-  .v-cards #cards::-webkit-scrollbar{display:none}
-  .mini{flex:none;width:150px;scroll-snap-align:start;background:#fff;border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;cursor:pointer}
+  #cards{order:3;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 18px 14px}
+  #cards:empty{display:none}
+  #cards::-webkit-scrollbar{display:none}
+  .mini{min-width:0;background:#fff;border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;cursor:pointer;transition:transform .12s}
+  .mini:hover{border-color:#FFD27A}
+  .mini:active{transform:scale(.97)}
   .mini .mi{font-size:18px}
   .mini .mn{font-size:14px;font-weight:600;margin:0 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .mini .md{font-size:12px;color:var(--sun-ink)}
@@ -100,7 +102,8 @@
   .skycheck button[data-sky=""]{font:inherit;font-size:14px;border:0;background:none;color:#B4531A;font-weight:600;padding:0;cursor:pointer}
 
   /* list */
-  #list{order:3;overflow:auto;padding:4px 8px 8px;border-top:1px solid var(--line)}
+  #list{order:4;padding:4px 8px 8px}
+  #list:empty{display:none}
   .cafe{display:flex;align-items:center;gap:12px;min-height:58px;padding:8px 10px;border-radius:var(--r-sm);cursor:pointer}
   .cafe:hover{background:var(--sand)}
   .cafe .ic{flex:none;width:36px;height:36px;border-radius:50%;background:var(--sand);display:grid;place-items:center;font-size:17px}
@@ -115,7 +118,7 @@
   .zoomin{margin:4px 12px 12px}
 
   /* legend */
-  .legend{order:4;border-top:1px solid var(--line);padding:12px 18px;font-size:13px;color:var(--muted)}
+  .legend{order:5;border-top:1px solid var(--line);padding:12px 18px;font-size:13px;color:var(--muted)}
   .legend summary{cursor:pointer;color:var(--ink);font-weight:600;list-style:none}
   .legend summary::-webkit-details-marker{display:none}
   .legend summary::after{content:" ›";color:var(--faint)}
@@ -130,7 +133,7 @@
   .sw.strip{width:20px;height:7px;background:linear-gradient(90deg,var(--sun),#C9C4BA)}
 
   /* ---------- time bar ---------- */
-  .timebar{position:absolute;z-index:3;left:50%;transform:translateX(-50%);bottom:calc(20px + var(--sb));width:min(720px,calc(100% - 32px));
+  .timebar{position:absolute;z-index:3;left:calc(412px + var(--sl));right:calc(16px + var(--sr));margin:0 auto;max-width:760px;bottom:calc(20px + var(--sb));
     background:var(--base);border-radius:var(--r-lg);box-shadow:var(--float);padding:12px 18px 14px}
   .tb-top{display:flex;align-items:center;gap:12px;margin-bottom:8px}
   .clock{font-size:28px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;min-width:82px}
@@ -174,7 +177,7 @@
     .panel header{padding:12px 14px 10px;display:flex;flex-direction:column}
     .panel header .searchbox{order:-1;margin:0 0 10px}
     h1{font-size:16px} .sub{margin-bottom:8px}
-    .timebar{left:calc(346px + var(--sl));right:calc(8px + var(--sr));width:auto;transform:none;bottom:calc(8px + var(--sb));padding:8px 14px 10px}
+    .timebar{left:calc(346px + var(--sl));right:calc(8px + var(--sr));max-width:none;bottom:calc(8px + var(--sb));padding:8px 14px 10px}
     .tb-top{margin-bottom:0} .clock{font-size:22px;min-width:64px} .ticks{display:none}
     .maplibregl-ctrl-top-right{right:var(--sr) !important}
   }
@@ -182,7 +185,10 @@
   /* ---------- phones ---------- */
   @media (max-width:700px){
     .panel{top:auto;bottom:calc(150px + var(--sb));left:calc(8px + var(--sl));right:calc(8px + var(--sr));width:auto;max-height:calc(100% - 280px - var(--st) - var(--sb));border-radius:var(--r-lg)}
-    .v-cards #cards{margin:10px -16px 0;padding:0 16px 4px}
+    #cards{order:2;padding:0 16px 12px}
+    .panel:not(.expanded) #cards{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}
+    .panel:not(.expanded) .mini{flex:none;width:150px;scroll-snap-align:start}
+    .panel.mini #cards{display:none}
     #slider{margin-top:2px;height:24px}
     .panel header{padding:6px 16px 10px}
     .grab{display:block;width:100%;height:30px;margin-top:-4px;border:0;background:none;cursor:pointer;position:relative}
@@ -203,7 +209,7 @@
     .sub{margin-bottom:10px}
     .panel:not(.expanded) .more{display:none}
     /* minimised sheet: title + one line */
-    .panel.mini .sub,.panel.mini #best,.panel.mini #cards,.panel.mini .skycheck{display:none}
+    .panel.mini .sub,.panel.mini #best,.panel.mini .skycheck{display:none}
     .panel.mini header{padding-bottom:12px}
     .panel.mini .peek{display:flex;align-items:center;gap:8px;margin:0 0 2px;font-size:15px;color:var(--muted);cursor:pointer;white-space:nowrap;overflow:hidden}
     .panel.mini .peek b{color:var(--ink);overflow:hidden;text-overflow:ellipsis}
@@ -219,7 +225,8 @@
     .chip{box-shadow:0 2px 8px rgba(31,26,20,.10);border-color:transparent}
     .maplibregl-ctrl-top-right{top:calc(108px + var(--st)) !important;right:var(--sr) !important}
     .skycheck{order:9;padding:9px 16px}
-    .timebar{bottom:calc(10px + var(--sb));padding:10px 14px 10px;width:calc(100% - 16px - var(--sl) - var(--sr))}
+    .timebar{left:calc(8px + var(--sl));right:calc(8px + var(--sr));max-width:none;bottom:calc(10px + var(--sb));padding:10px 14px 10px}
+    .maplibregl-ctrl-bottom-left{bottom:auto !important;top:calc(108px + var(--st));left:var(--sl)}
     .tb-top{gap:10px;margin-bottom:2px;flex-wrap:wrap}
     .clock{font-size:24px;min-width:66px}
     .quick{margin-left:auto}
@@ -242,7 +249,6 @@
     <div class="sub">Antwerp · today <span id="ohnote"></span></div>
     <div id="peek" class="peek" role="button" tabindex="0"></div>
     <div id="best"></div>
-    <div id="cards" aria-label="More sunny spots"></div>
     <div class="searchbox">
       <div class="searchrow">
         <div class="field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
@@ -258,6 +264,7 @@
     </div>
     <div id="count">Loading the map…</div>
   </header>
+  <div id="cards" aria-label="More sunny spots"></div>
   <div id="skycheck" class="skycheck" aria-live="polite"></div>
   <div id="list" class="more"></div>
   <details class="legend more">
@@ -683,10 +690,11 @@ function computeCafe(c){
 const map = new maplibregl.Map({
   container:'map', style:'https://tiles.openfreemap.org/styles/positron',
   center:ANTWERP.center, zoom:15.6, minZoom:12, maxZoom:19, maxBounds:ANTWERP.bounds,
-  dragRotate:false, pitchWithRotate:false, touchPitch:false, attributionControl:{ compact:true, customAttribution:'Weather: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0)' }, fadeDuration:0
+  dragRotate:false, pitchWithRotate:false, touchPitch:false, attributionControl:false, fadeDuration:0
 });
 map.touchZoomRotate.disableRotation();
 map.addControl(new maplibregl.NavigationControl({ showCompass:false }), 'top-right');
+map.addControl(new maplibregl.AttributionControl({ compact:true, customAttribution:'Weather: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0)' }), 'bottom-left');
 const geo = new maplibregl.GeolocateControl({ positionOptions:{ enableHighAccuracy:true }, trackUserLocation:true, showUserLocation:true, fitBoundsOptions:{ maxZoom:16.5 } });
 map.addControl(geo, 'top-right');
 geo.on('geolocate', pos => {
@@ -1199,14 +1207,13 @@ function renderList(){
     $('#count').innerHTML = !F.coffee && !F.cafe ? 'Switch on Coffee bars or Cafés to see places.'
       : sunDown ? `${cands.length} ${noun} ${where}`
       : `<b>${ranked.length}</b> of ${cands.length} ${noun} ${where} in the sun${S.slots[S.idx].wx ? ` · ${skyLabel(S.slots[S.idx].wx)}` : ''}`;
-    html = ranked.slice(1, 80).map(({ c, walk }) => `<div class="cafe" data-id="${c.id}"><span class="ic">${kindIcon(c)}</span><span class="n">${esc(c.name)}</span><span class="u sun">${walk} min · until ${hhmm(sunnyUntil(c, S.idx))}</span></div>`).join('')
-      || (ranked.length ? '' : `<div class="hint">${sunDown ? '' : cands.length ? 'Try another hour, move the map or change the filters.' : inflight ? 'Loading…' : 'Nothing here. Move the map to a busier street, or change the filters.'}</div>`);
+ html = (ranked.length ? '' : `<div class="hint">${sunDown ? '' : cands.length ? 'Try another hour, move the map or change the filters.' : inflight ? 'Loading…' : 'Nothing here. Move the map to a busier street, or change the filters.'}</div>`);
   }
   if (best !== lastBest){ $('#best').innerHTML = best; lastBest = best; }
   const top = (S._ranked || [])[0];
   const peek = top ? `<span class="pd"></span><b>${esc(top.c.name)}</b> · sun until ${hhmm(sunnyUntil(top.c, S.idx))}` : (best ? 'No sunny spot right now · swipe up for more' : '');
   if (peek !== lastPeek){ $('#peek').innerHTML = peek; lastPeek = peek; }
-  const cards = (S._ranked || []).slice(1, 8).map(({ c, walk }) => `<div class="mini" data-id="${c.id}" role="button" tabindex="0"><div class="mn">${kindIcon(c)} ${esc(c.name)}</div><div class="md">Sun until ${hhmm(sunnyUntil(c, S.idx))}</div><div class="mw">${walk} min walk</div></div>`).join('');
+  const cards = (S._ranked || []).slice(1, 40).map(({ c, walk }) => `<div class="mini" data-id="${c.id}" role="button" tabindex="0"><div class="mn">${kindIcon(c)} ${esc(c.name)}</div><div class="md">Sun until ${hhmm(sunnyUntil(c, S.idx))}</div><div class="mw">${walk} min walk</div></div>`).join('');
   if (cards !== lastCards){ $('#cards').innerHTML = cards; lastCards = cards; }
   if (html !== lastListHtml){ $('#list').innerHTML = html; lastListHtml = html; }
 }
