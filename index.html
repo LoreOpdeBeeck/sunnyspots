@@ -70,6 +70,10 @@
   .sw.me{width:12px;height:12px;margin:0 4px;border-radius:50%;background:#1da1f2;border:2px solid #fff;box-shadow:0 0 0 1px #0003}
   .sw.strip{width:20px;height:7px;background:linear-gradient(90deg,#ffd75e,#c8cbd2)}
   .zoomin{margin:4px 16px 12px}
+  .skycheck{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:0 0 4px}
+  .skycheck button{font:inherit;font-size:15px;line-height:1;border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 7px;cursor:pointer}
+  .skycheck button:hover{background:#f6efe1}
+  .skycheck button[data-sky=""]{font-size:12.5px;border:0;background:none;color:#c2410c;text-decoration:underline;padding:0}
   .pop-actions{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:6px;font-size:12.5px}
   .pop-actions button{font:inherit;color:#c2410c;background:none;border:0;padding:0;cursor:pointer;text-decoration:underline}
   .maplibregl-popup-content{max-height:min(60vh,460px);overflow:auto}
@@ -128,6 +132,7 @@
     </div>
     <div class="sub">Antwerp · today <span id="ohnote"></span></div>
     <div id="best"></div>
+    <div id="skycheck" class="skycheck" aria-live="polite"></div>
     <div class="more">
       <div class="searchrow">
         <input id="search" type="search" placeholder="Search a café or coffee bar…" autocomplete="off" aria-label="Search a café or coffee bar">
@@ -464,8 +469,16 @@ async function loadWeather(){
       let clear;
       if (low != null && mid != null && high != null) clear = (1 - 0.95*low/100) * (1 - 0.85*mid/100) * (1 - 0.4*high/100); // chance the sun disc is free
       else if (cc != null) clear = 1 - cc/100; else return;
-      m.set(Date.parse(ts + ':00Z'), { clear:Math.max(0, Math.min(1, clear)), cc, temp:h.temperature_2m[i] });
+      m.set(Date.parse(ts + ':00Z'), { raw:Math.max(0, Math.min(1, clear)), cc, temp:h.temperature_2m[i] });
     });
+    // Forecasts often get short clear gaps wrong (e.g. 100% → 3% → 100% cloud). Be cautious: blend each hour
+    // with the cloudiest of its neighbours, so a lone clear hour reads "partly cloudy · forecast unsure".
+    for (const [k, rec] of m){
+      const nb = [m.get(k - 3.6e6), rec, m.get(k + 3.6e6)].filter(Boolean).map(x => x.raw);
+      const mn = Math.min(...nb), avg = nb.reduce((a, b) => a + b, 0)/nb.length;
+      rec.clear = Math.min(rec.raw, (mn + avg)/2);
+      rec.unsure = rec.raw - rec.clear > 0.25;
+    }
     WX.hours = m;
   } catch(e){ console.warn('forecast unavailable', e); WX.hours = null; }
   applyWeather();
@@ -475,13 +488,43 @@ function wxAt(t){
   const h0 = Math.floor(t/3.6e6)*3.6e6, a = WX.hours.get(h0), b = WX.hours.get(h0 + 3.6e6);
   if (!a) return b || null; if (!b) return a;
   const f = (t - h0)/3.6e6, lerp = (x, y) => x + (y - x)*f;
-  return { clear:lerp(a.clear, b.clear), cc:Math.round(lerp(a.cc, b.cc)), temp:lerp(a.temp, b.temp) };
+  return { clear:lerp(a.clear, b.clear), cc:Math.round(lerp(a.cc, b.cc)), temp:lerp(a.temp, b.temp), unsure:f < 0.5 ? a.unsure : b.unsure };
 }
+
+/* ---------- "What does the sky look like?" — the visitor's own eyes beat the forecast ---------- */
+const SKY_KEY = 'sunspot-sky-v1', SKY_FULL = 90*60000, SKY_FADE = 60*60000;
+const SKY_VAL = { sun:0.95, part:0.5, cloud:0.05 }, SKY_ICON = { sun:'☀', part:'⛅', cloud:'☁' };
+let SKY = null;
+try { const v = JSON.parse(localStorage.getItem(SKY_KEY) || 'null'); if (v && Date.now() - v.t < SKY_FULL + SKY_FADE) SKY = v; } catch(e){}
+function skyWeight(t){ if (!SKY) return 0; const d = t - SKY.t; if (d < -15*60000 || d > SKY_FULL + SKY_FADE) return 0; return d <= SKY_FULL ? 1 : 1 - (d - SKY_FULL)/SKY_FADE; }
+function setSky(kind){
+  SKY = kind ? { k:kind, t:Date.now() } : null;
+  try { kind ? localStorage.setItem(SKY_KEY, JSON.stringify(SKY)) : localStorage.removeItem(SKY_KEY); } catch(e){}
+  applyWeather(); renderSkyCheck();
+}
+function renderSkyCheck(){
+  const el = $('#skycheck'); if (!el) return;
+  if (SKY && skyWeight(Date.now()) > 0){
+    el.innerHTML = `Using what you see: <b>${SKY_ICON[SKY.k]}</b> until ${hhmm(SKY.t + SKY_FULL)} · <button type="button" data-sky="">use forecast</button>`;
+  } else {
+    el.innerHTML = 'Sky right now? <button type="button" data-sky="sun" title="Sunny">☀</button><button type="button" data-sky="part" title="Partly cloudy">⛅</button><button type="button" data-sky="cloud" title="Cloudy">☁</button>';
+  }
+}
+document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-sky]'); if (b) setSky(b.dataset.sky || null); });
+setInterval(() => { if (SKY && skyWeight(Date.now()) === 0){ SKY = null; applyWeather(); } renderSkyCheck(); }, 60000);
+function skyLabel(w){ return skyWord(w.clear) + (w.user ? ' (as you see it)' : w.unsure ? ' · forecast unsure' : ''); }
 function skyWord(clear){ return clear > 0.8 ? '☀ Clear' : clear > 0.55 ? '🌤 Mostly clear' : clear > 0.3 ? '⛅ Partly cloudy' : clear > 0.12 ? '🌥 Mostly cloudy' : '☁ Overcast'; }
 function applyWeather(){
-  for (const s of S.slots) s.wx = wxAt(s.t + STEP_MIN*30000);
+  for (const s of S.slots){
+    const mid = s.t + STEP_MIN*30000, base = wxAt(mid), w = skyWeight(mid);
+    if (w > 0){
+      const seen = SKY_VAL[SKY.k], c = base ? base.clear*(1 - w) + seen*w : seen;
+      s.wx = { ...(base || { cc:null, temp:null }), clear:c, user:w > 0.5, unsure:false };
+    } else s.wx = base;
+  }
+  renderSkyCheck();
   const el = $('#clouds');
-  if (WX.hours && S.slots.length){
+  if ((WX.hours || SKY) && S.slots.length){
     const n = S.last - S.first + 1, stops = [];
     for (let i = S.first; i <= S.last; i++){
       const w = S.slots[i].wx, c = w ? w.clear : 0.5;
@@ -951,7 +994,7 @@ function updateTime(){
   const s = slot.sun, w = slot.wx;
   $('#clock').textContent = hhmm(slot.t);
   const sunTxt = s.alt >= MIN_ALT ? `Sun ${Math.round(s.alt)}° high in the ${compass(s.az)}` : (s.alt > -1 ? 'Sun on the horizon' : 'Sun is down');
-  $('#suninfo').innerHTML = esc(sunTxt) + (w ? ` · <span class="wx">${skyWord(w.clear)}, ${Math.round(w.temp)}°C</span>` : '');
+  $('#suninfo').innerHTML = esc(sunTxt) + (w ? ` · <span class="wx">${skyLabel(w)}${w.temp != null ? `, ${Math.round(w.temp)}°C` : ''}</span>` : '');
   updatePaint();
   pushCafes(false);
   updateQuick();
@@ -1040,7 +1083,7 @@ function renderList(){
     const where = r.me ? 'within 15 min walk' : 'in view';
     $('#count').innerHTML = !F.coffee && !F.cafe ? 'Switch on Coffee bars or Cafés to see places.'
       : sunDown ? `${cands.length} ${noun} ${where}`
-      : `<b>${ranked.length}</b> of ${cands.length} ${noun} ${where} in the sun${S.slots[S.idx].wx ? ` · ${skyWord(clearNow())}` : ''}`;
+      : `<b>${ranked.length}</b> of ${cands.length} ${noun} ${where} in the sun${S.slots[S.idx].wx ? ` · ${skyLabel(S.slots[S.idx].wx)}` : ''}`;
     html = ranked.slice(1, 80).map(({ c, walk }) => `<div class="cafe" data-id="${c.id}"><span class="n">${kindIcon(c)} ${esc(c.name)}${terraceIcon(c)}</span><span class="u sun">${walk} min · until ${hhmm(sunnyUntil(c, S.idx))}</span></div>`).join('')
       || (ranked.length ? '' : `<div class="hint">${sunDown ? '' : cands.length ? 'Try another hour, move the map or change the filters.' : inflight ? 'Loading…' : 'Nothing here. Move the map to a busier street, or change the filters.'}</div>`);
   }
@@ -1135,7 +1178,7 @@ function openPopup(id, refreshOnly){
     }
     const ns = nextSun(c, S.idx), w = S.slots[S.idx].wx;
     body = (c.st[S.idx] ? `<div class="now-sun">☀ In the sun until ${hhmm(sunnyUntil(c, S.idx))}</div>` : `<div class="now-shade">In the shade${ns ? ` · sun again at ${hhmm(ns)}` : ''}</div>`)
-      + (w ? `<div style="color:#6b6f7a">${skyWord(w.clear)} at ${hhmm(S.slots[S.idx].t)} · ${w.cc}% cloud cover</div>` : '')
+      + (w ? `<div style="color:#6b6f7a">${skyLabel(w)} at ${hhmm(S.slots[S.idx].t)}${w.cc != null && !w.user ? ` · forecast ${w.cc}% cloud` : ''}</div>` : '')
       + (periods.length ? `<div style="margin-top:6px;color:#6b6f7a">Terrace in direct sun today (if no clouds):</div><ul>${periods.map(p => `<li>${p}</li>`).join('')}</ul>` : '<div style="margin-top:6px;color:#6b6f7a">No direct sun on the terrace today.</div>');
   }
   const r = refPoint();
