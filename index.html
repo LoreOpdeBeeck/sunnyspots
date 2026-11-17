@@ -141,7 +141,6 @@
       <div class="chips" role="group" aria-label="Filters">
         <button class="chip on" data-f="coffee" aria-pressed="true">☕ Coffee bars</button>
         <button class="chip on" data-f="cafe" aria-pressed="true">🍺 Cafés</button>
-        <button class="chip" data-f="terrace" aria-pressed="false">⛱ Terrace</button>
         <button class="chip" data-f="openOnly" aria-pressed="false">Show only open</button>
       </div>
     </div>
@@ -891,14 +890,14 @@ function requestTiles(){
 }
 
 /* ---------- filters ---------- */
-const F = { coffee:true, cafe:true, openOnly:false, terrace:false };
+const F = { coffee:true, cafe:true, openOnly:false };
 const kindOn = c => (c.kind === 'coffee' ? F.coffee : F.cafe);
 const isOpenNow = c => c.open ? c.open[S.idx] : -1;            // 1 / 0 / -1 (unknown)
-const passes = c => kindOn(c) && !(F.openOnly && isOpenNow(c) === 0) && !(F.terrace && c.t !== 1);
+const passes = c => kindOn(c) && !(F.openOnly && isOpenNow(c) === 0);
 function applyFilters(){
   if (!map.getLayer('cafe-dot')) return;
   const kinds = ['literal', [F.coffee && 'coffee', F.cafe && 'cafe'].filter(Boolean)];
-  const f = ['all', ['in', ['get', 'kind'], kinds], F.terrace ? ['==', ['get', 't'], 1] : true];
+  const f = ['in', ['get', 'kind'], kinds];
   for (const id of ['cafe-glow', 'cafe-dot', 'cafe-sun-icon', 'cafe-label']) map.setFilter(id, f);
   lastClearQ = -1; updatePaint();
   scheduleList();
@@ -1040,7 +1039,7 @@ function score(c, r, walk){
   const i = S.idx, open = isOpenNow(c);
   if (!c.st[i] || open === 0) return -Infinity;
   const left = Math.min((sunnyUntil(c, i) - S.slots[i].t)/60000, 150);
-  return left*(0.4 + 0.6*clearNow()) - (r.me ? 2.2 : 0.8)*walk + (c.t === 1 ? 20 : c.t === 0 ? -45 : 0) + (open === 1 ? 4 : 0);
+  return left*(0.4 + 0.6*clearNow()) - (r.me ? 2.2 : 0.8)*walk + (c.t === 1 ? 5 : 0) + (open === 1 ? 4 : 0);
 }
 const terraceIcon = c => c.t === 1 ? ' <span title="Has a terrace">⛱</span>' : '';
 function bestCard(r, ranked, cands){
