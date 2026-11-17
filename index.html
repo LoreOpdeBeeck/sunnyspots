@@ -35,6 +35,7 @@
   .sub{font-size:13px;color:var(--muted);margin:2px 0 12px}
   #ohnote{color:#B4531A}
   .sheet-btn{display:none}
+  .peek{display:none}
 
   /* best pick */
   #best .best{position:relative;margin:0 0 4px;padding:14px 52px 14px 16px;border-radius:var(--r-md);background:#fff;border:1.5px solid #FFD27A;cursor:pointer;
@@ -166,6 +167,12 @@
     h1{font-size:17px}
     .sub{margin-bottom:10px}
     .panel:not(.expanded) .more{display:none}
+    /* minimised sheet: title + one line */
+    .panel.mini .sub,.panel.mini #best,.panel.mini #cards,.panel.mini .skycheck{display:none}
+    .panel.mini .peek{display:flex;align-items:center;gap:8px;margin:6px 0 4px;font-size:15px;color:var(--muted);cursor:pointer;white-space:nowrap;overflow:hidden}
+    .panel.mini .peek b{color:var(--ink);overflow:hidden;text-overflow:ellipsis}
+    .peek .pd{flex:none;width:10px;height:10px;border-radius:50%;background:var(--sun);box-shadow:0 0 0 3px var(--sun-soft)}
+    .panel{touch-action:pan-x pan-y}
     .panel:not(.expanded) #count{display:none}
     .searchbox{position:fixed;z-index:4;top:10px;left:10px;right:10px;margin:0}
     .searchbox .field #search{background:#fff;box-shadow:var(--float)}
@@ -187,7 +194,7 @@
   }
 </style>
 </head>
-<body>
+<body class="v-cards">
 <div id="map"></div>
 <div class="panel">
   <header>
@@ -197,6 +204,7 @@
       <button id="sheet" class="sheet-btn" aria-expanded="true" aria-label="Show or hide the list">▼</button>
     </div>
     <div class="sub">Antwerp · today <span id="ohnote"></span></div>
+    <div id="peek" class="peek" role="button" tabindex="0"></div>
     <div id="best"></div>
     <div id="cards" aria-label="More sunny spots"></div>
     <div class="searchbox">
@@ -1156,11 +1164,14 @@ function renderList(){
       || (ranked.length ? '' : `<div class="hint">${sunDown ? '' : cands.length ? 'Try another hour, move the map or change the filters.' : inflight ? 'Loading…' : 'Nothing here. Move the map to a busier street, or change the filters.'}</div>`);
   }
   if (best !== lastBest){ $('#best').innerHTML = best; lastBest = best; }
+  const top = (S._ranked || [])[0];
+  const peek = top ? `<span class="pd"></span><b>${esc(top.c.name)}</b> · sun until ${hhmm(sunnyUntil(top.c, S.idx))}` : (best ? 'No sunny spot right now · swipe up for more' : '');
+  if (peek !== lastPeek){ $('#peek').innerHTML = peek; lastPeek = peek; }
   const cards = (S._ranked || []).slice(1, 8).map(({ c, walk }) => `<div class="mini" data-id="${c.id}" role="button" tabindex="0"><div class="mi">${kindIcon(c)}</div><div class="mn">${esc(c.name)}</div><div class="md">Sun until ${hhmm(sunnyUntil(c, S.idx))}</div><div class="mw">${walk} min walk</div></div>`).join('');
   if (cards !== lastCards){ $('#cards').innerHTML = cards; lastCards = cards; }
   if (html !== lastListHtml){ $('#list').innerHTML = html; lastListHtml = html; }
 }
-let lastBest = '', lastCards = '';
+let lastBest = '', lastCards = '', lastPeek = '';
 $('#cards').addEventListener('click', e => { const el = e.target.closest('[data-id]'); if (el) focusCafe(+el.dataset.id); });
 $('#best').addEventListener('click', e => { const el = e.target.closest('[data-id]'); if (el) focusCafe(+el.dataset.id); });
 $('#best').addEventListener('keydown', e => { if (e.key === 'Enter'){ const el = e.target.closest('[data-id]'); if (el) focusCafe(+el.dataset.id); } });
@@ -1209,9 +1220,49 @@ function reportUrl(c){
   return `https://github.com/LoreOpdeBeeck/sunnyspots/issues/new?title=${encodeURIComponent('Wrong sun/shade: ' + c.name)}&body=${encodeURIComponent(body)}&labels=feedback`;
 }
 const isPhone = () => window.matchMedia && window.matchMedia('(max-width:700px)').matches;
-function setSheet(open){ $('.panel').classList.toggle('expanded', open); $('#sheet').setAttribute('aria-expanded', open); $('#sheet').textContent = open ? '▼' : '▲'; }
-$('#sheet').addEventListener('click', () => setSheet(!$('.panel').classList.contains('expanded')));
-$('#grab').addEventListener('click', () => setSheet(!$('.panel').classList.contains('expanded')));
+/* ---------- phone sheet: three positions, swipe or tap the handle ---------- */
+const SHEET = ['mini', 'folded', 'full'];
+function sheetState(){ const p = $('.panel'); return p.classList.contains('expanded') ? 'full' : p.classList.contains('mini') ? 'mini' : 'folded'; }
+function setSheetState(st){
+  const p = $('.panel');
+  p.classList.toggle('expanded', st === 'full'); p.classList.toggle('mini', st === 'mini');
+  $('#grab').setAttribute('aria-expanded', st !== 'mini');
+  $('#grab').setAttribute('aria-label', st === 'full' ? 'Fold the list' : 'Show more');
+}
+function setSheet(open){ setSheetState(open ? 'full' : 'folded'); }
+function stepSheet(dir){ const i = SHEET.indexOf(sheetState()); setSheetState(SHEET[Math.max(0, Math.min(SHEET.length - 1, i + dir))]); }
+$('#sheet').addEventListener('click', () => setSheet(sheetState() !== 'full'));
+$('#grab').addEventListener('click', () => setSheetState(sheetState() === 'full' ? 'folded' : sheetState() === 'mini' ? 'folded' : 'full'));
+$('#peek').addEventListener('click', () => setSheetState('folded'));
+(function swipeSheet(){
+  const panel = $('.panel'), list = $('#list');
+  let t = null;
+  panel.addEventListener('touchstart', e => {
+    if (!isPhone() || e.touches.length !== 1) return;
+    const p = e.touches[0];
+    t = { x:p.clientX, y:p.clientY, dy:0, lock:null, inList:!!e.target.closest('#list') };
+  }, { passive:true });
+  panel.addEventListener('touchmove', e => {
+    if (!t) return;
+    const p = e.touches[0], dx = p.clientX - t.x, dy = p.clientY - t.y;
+    if (!t.lock && Math.hypot(dx, dy) > 8) t.lock = Math.abs(dy) > Math.abs(dx) ? 'v' : 'h';
+    if (t.lock !== 'v'){ if (t.lock === 'h') t = null; return; }           // sideways: let the card row scroll
+    const st = sheetState();
+    if (t.inList && (list.scrollTop > 0 || (dy < 0 && st === 'full'))){ t = null; panel.style.transform = ''; return; } // normal list scrolling
+    if ((dy < 0 && st === 'full') || (dy > 0 && st === 'mini')){ t.dy = 0; panel.style.transform = `translateY(${dy*0.15}px)`; e.preventDefault(); return; } // already at the end: small rubber band
+    t.dy = dy;
+    panel.style.transition = 'none';
+    panel.style.transform = `translateY(${Math.max(-60, dy)}px)`;
+    e.preventDefault();
+  }, { passive:false });
+  const end = () => {
+    if (!t) return;
+    panel.style.transition = 'transform .18s ease-out'; panel.style.transform = '';
+    if (t.dy > 45) stepSheet(-1); else if (t.dy < -45) stepSheet(1);
+    t = null;
+  };
+  panel.addEventListener('touchend', end); panel.addEventListener('touchcancel', end);
+})();
 $('#search').addEventListener('focus', () => { if (isPhone()) setSheet(true); });
 
 let searchTimer = null;
