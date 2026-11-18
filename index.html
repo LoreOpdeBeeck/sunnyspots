@@ -38,7 +38,7 @@
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   @media (prefers-reduced-motion:reduce){ *,*::before,*::after{transition-duration:.01ms !important;animation-duration:.01ms !important;scroll-behavior:auto !important} }
-  html,body{margin:0;height:100%;font-family:var(--font);color:var(--ink);overflow:hidden;background:#F2F3F0}
+  html,body{margin:0;height:100%;font-family:var(--font);color:var(--ink);overflow:hidden;background:#F3EFE7}
   html{overscroll-behavior:none}
   body{height:100vh;height:100dvh;position:relative;overscroll-behavior:none}
   /* soft fade behind the phone's status bar (clock / battery) so they stay readable over the map */
@@ -877,7 +877,7 @@ window.addEventListener('online', () => { if (!S.mapReady) location.reload(); })
 /* ---------- GPU shadow layer ---------- */
 const shadowLayer = {
   id:'sun-shadows', type:'custom', renderingMode:'2d',
-  look:{ shade:[0.10, 0.17, 0.46], shadeA:0.40, shadeMin:0.5, warm:[1.0, 0.78, 0.30], warmA:0.16 },
+  look:{ shade:[0.22, 0.32, 0.62], shadeA:0.36, shadeMin:0.55, warm:[1.0, 0.80, 0.38], warmA:0.20 },
   onAdd(){ },
   init(gl){
     this.gl = gl;
@@ -1288,24 +1288,24 @@ map.on('load', () => {
     map.addLayer({ id:'buildings-3d', type:'fill-extrusion', source:vsrc, 'source-layer':'building', minzoom:14,
       filter:['!=', ['get', 'hide_3d'], true],
       paint:{
-        'fill-extrusion-color':'#F6EFE3',
+        'fill-extrusion-color':'#FBF8F2',
         'fill-extrusion-height':['interpolate', ['linear'], ['zoom'], 14, 0, 15, ['coalesce', ['get', 'render_height'], 8]],
         'fill-extrusion-base':['interpolate', ['linear'], ['zoom'], 14, 0, 15, ['coalesce', ['get', 'render_min_height'], 0]],
         'fill-extrusion-opacity':0.92, 'fill-extrusion-vertical-gradient':true } }, firstSymbol);
   // calm, warm base map: stone-coloured ground, crisp white streets with a soft edge, gentle green parks
   const paint = (id, prop, val) => { try { if (map.getLayer(id)) map.setPaintProperty(id, prop, val); } catch(e){} };
-  paint('background', 'background-color', '#EDE7DC');
-  paint('landuse_residential', 'fill-color', '#EDE7DC');
+  paint('background', 'background-color', '#F3EFE7');
+  paint('landuse_residential', 'fill-color', '#F3EFE7');
   paint('park', 'fill-color', '#DCE8D0'); paint('landcover_wood', 'fill-color', '#D3E2C6');
   paint('water', 'fill-color', '#B7D6E0'); paint('waterway', 'line-color', '#B7D6E0');
-  paint('road_area_pier', 'fill-color', '#EDE7DC'); paint('road_pier', 'line-color', '#EDE7DC');
+  paint('road_area_pier', 'fill-color', '#F3EFE7'); paint('road_pier', 'line-color', '#F3EFE7');
   paint('highway_minor', 'line-color', '#FFFFFF'); paint('highway_path', 'line-color', '#FBF8F2');
-  paint('highway_major_casing', 'line-color', '#D8CFBF'); paint('highway_major_inner', 'line-color', '#FFFFFF');
+  paint('highway_major_casing', 'line-color', '#DED5C6'); paint('highway_major_inner', 'line-color', '#FFFFFF');
   try {
     const minor = st.layers.find(l => l.id === 'highway_minor');
     if (minor) map.addLayer({ id:'highway_minor_casing', type:'line', source:minor.source, 'source-layer':'transportation',
       filter:minor.filter, minzoom:14, layout:{ 'line-cap':'round', 'line-join':'round' },
-      paint:{ 'line-color':'#DDD4C5', 'line-width':['interpolate', ['exponential', 1.6], ['zoom'], 14, 2.5, 16, 7, 18, 22] } }, 'highway_minor');
+      paint:{ 'line-color':'#DED5C6', 'line-width':['interpolate', ['exponential', 1.6], ['zoom'], 14, 2.5, 16, 7, 18, 22] } }, 'highway_minor');
     paint('highway_minor', 'line-width', ['interpolate', ['exponential', 1.6], ['zoom'], 14, 1.5, 16, 5, 18, 18]);
   } catch(e){ console.warn('street casing', e); }
   setSunLight();
@@ -1366,8 +1366,8 @@ map.on('moveend', () => { requestTiles(); scheduleList(); });
 function setSunLight(){
   const slot = S.slots[S.idx]; if (!slot || !map.setLight) return;
   const s = slot.sun, up = s.alt > 0;
-  try { map.setLight({ anchor:'map', color: up ? '#FFF6E5' : '#DCE3F0', intensity: up ? 0.42 : 0.25,
-    position:[1.4, up ? s.az : 200, up ? Math.min(80, Math.max(20, 90 - s.alt)) : 40] }); } catch(e){}
+  // direction follows the sun; height stays fixed so roofs stay bright and walls stay readable
+  try { map.setLight({ anchor:'map', color: up ? '#FFFAF0' : '#DCE3F0', intensity: up ? 0.3 : 0.22, position:[1.4, up ? s.az : 200, 35] }); } catch(e){}
 }
 function updateTime(){
   const slot = S.slots[S.idx]; if (!slot) return;
