@@ -1421,11 +1421,11 @@ function afterSearchClose(){
 }
 $('#search').addEventListener('input', () => { S._picked = false; updateSearching(); updateClear(); });
 function updateClear(){ $('.field').classList.toggle('has-text', $('#search').value.length > 0); }
-// keep the clear button down (pointerdown) so tapping it doesn't blur the field first
+// pointerdown: don't let the tap itself move focus around; the click handler clears and closes the keyboard
 $('#sclear').addEventListener('pointerdown', e => e.preventDefault());
 $('#sclear').addEventListener('click', () => {
   const inp = $('#search'); inp.value = ''; S._picked = false;
-  document.body.classList.remove('searching'); updateClear(); renderList(); inp.focus();
+  document.body.classList.remove('searching'); updateClear(); renderList(); inp.blur();   // just clear: no keyboard
 });
 $('#search').addEventListener('focus', () => { S._picked = false; updateSearching(); });
 $('#search').addEventListener('blur', () => setTimeout(() => { if (!$('#search').value.trim()) document.body.classList.remove('searching'); }, 150));
