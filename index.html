@@ -889,12 +889,12 @@ const shadowLayer = {
       'precision mediump float; uniform float u_val; void main(){ gl_FragColor = vec4(u_val, 0.0, 0.0, 1.0); }');
     this.comp = prog(
       'attribute vec2 a_xy; void main(){ gl_Position = vec4(a_xy, 0.0, 1.0); }',
-      'precision mediump float; uniform sampler2D u_tex; uniform vec2 u_size; uniform float u_alpha; uniform float u_night; uniform vec3 u_col;' +
-      'void main(){ float m = max(texture2D(u_tex, gl_FragCoord.xy / u_size).r, u_night); float a = m * u_alpha; gl_FragColor = vec4(u_col * a, a); }');
+      'precision mediump float; uniform sampler2D u_tex; uniform vec2 u_size; uniform float u_alpha; uniform float u_night; uniform vec3 u_col; uniform vec3 u_warm; uniform float u_walpha;' +
+      'void main(){ float m = max(texture2D(u_tex, gl_FragCoord.xy / u_size).r, u_night); float a = m * u_alpha; float aw = (1.0 - m) * u_walpha; gl_FragColor = vec4(u_col * a + u_warm * aw, a + aw); }');
     this.loc = {
       pos: gl.getAttribLocation(this.mask, 'a_pos'), matrix: gl.getUniformLocation(this.mask, 'u_matrix'), off: gl.getUniformLocation(this.mask, 'u_off'), val: gl.getUniformLocation(this.mask, 'u_val'),
       xy: gl.getAttribLocation(this.comp, 'a_xy'), tex: gl.getUniformLocation(this.comp, 'u_tex'), size: gl.getUniformLocation(this.comp, 'u_size'),
-      alpha: gl.getUniformLocation(this.comp, 'u_alpha'), night: gl.getUniformLocation(this.comp, 'u_night'), col: gl.getUniformLocation(this.comp, 'u_col')
+      alpha: gl.getUniformLocation(this.comp, 'u_alpha'), night: gl.getUniformLocation(this.comp, 'u_night'), col: gl.getUniformLocation(this.comp, 'u_col'), warm: gl.getUniformLocation(this.comp, 'u_warm'), walpha: gl.getUniformLocation(this.comp, 'u_walpha')
     };
     this.quad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this.quad);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
@@ -977,6 +977,8 @@ const shadowLayer = {
     gl.uniform1f(this.loc.alpha, night ? (sun.alt < -1 ? 0.55 : 0.4) : 0.40*(0.5 + 0.5*clearNow()));
     gl.uniform1f(this.loc.night, night ? 1 : 0);
     gl.uniform3f(this.loc.col, 0.10, 0.17, 0.46);   // cool blue: shade reads apart from the warm buildings
+    gl.uniform3f(this.loc.warm, 1.0, 0.78, 0.30);   // a hint of golden light on ground in the sun
+    gl.uniform1f(this.loc.walpha, night ? 0 : 0.16*clearNow());
     gl.bindBuffer(gl.ARRAY_BUFFER, this.quad);
     gl.enableVertexAttribArray(this.loc.xy);
     gl.vertexAttribPointer(this.loc.xy, 2, gl.FLOAT, false, 0, 0);
@@ -1284,11 +1286,27 @@ map.on('load', () => {
     map.addLayer({ id:'buildings-3d', type:'fill-extrusion', source:vsrc, 'source-layer':'building', minzoom:14,
       filter:['!=', ['get', 'hide_3d'], true],
       paint:{
-        'fill-extrusion-color':'#F1E9DA',
+        'fill-extrusion-color':'#F6EFE3',
         'fill-extrusion-height':['interpolate', ['linear'], ['zoom'], 14, 0, 15, ['coalesce', ['get', 'render_height'], 8]],
         'fill-extrusion-base':['interpolate', ['linear'], ['zoom'], 14, 0, 15, ['coalesce', ['get', 'render_min_height'], 0]],
         'fill-extrusion-opacity':0.92, 'fill-extrusion-vertical-gradient':true } }, firstSymbol);
-  try { map.setLight({ anchor:'map', position:[1.2, 200, 35], color:'#ffffff', intensity:0.3 }); } catch(e){}
+  // calm, warm base map: stone-coloured ground, crisp white streets with a soft edge, gentle green parks
+  const paint = (id, prop, val) => { try { if (map.getLayer(id)) map.setPaintProperty(id, prop, val); } catch(e){} };
+  paint('background', 'background-color', '#EDE7DC');
+  paint('landuse_residential', 'fill-color', '#EDE7DC');
+  paint('park', 'fill-color', '#DCE8D0'); paint('landcover_wood', 'fill-color', '#D3E2C6');
+  paint('water', 'fill-color', '#B7D6E0'); paint('waterway', 'line-color', '#B7D6E0');
+  paint('road_area_pier', 'fill-color', '#EDE7DC'); paint('road_pier', 'line-color', '#EDE7DC');
+  paint('highway_minor', 'line-color', '#FFFFFF'); paint('highway_path', 'line-color', '#FBF8F2');
+  paint('highway_major_casing', 'line-color', '#D8CFBF'); paint('highway_major_inner', 'line-color', '#FFFFFF');
+  try {
+    const minor = st.layers.find(l => l.id === 'highway_minor');
+    if (minor) map.addLayer({ id:'highway_minor_casing', type:'line', source:minor.source, 'source-layer':'transportation',
+      filter:minor.filter, minzoom:14, layout:{ 'line-cap':'round', 'line-join':'round' },
+      paint:{ 'line-color':'#DDD4C5', 'line-width':['interpolate', ['exponential', 1.6], ['zoom'], 14, 2.5, 16, 7, 18, 22] } }, 'highway_minor');
+    paint('highway_minor', 'line-width', ['interpolate', ['exponential', 1.6], ['zoom'], 14, 1.5, 16, 5, 18, 18]);
+  } catch(e){ console.warn('street casing', e); }
+  setSunLight();
   } catch(e){ console.warn('3D buildings', e); }
   map.addSource('cafes', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
   map.addLayer({ id:'cafe-glow', type:'circle', source:'cafes',
@@ -1342,8 +1360,16 @@ map.on('load', () => {
 map.on('moveend', () => { requestTiles(); scheduleList(); });
 
 /* ---------- time changes ---------- */
+// light the 3D buildings from where the sun really is, so the sunny side of each block is the bright side
+function setSunLight(){
+  const slot = S.slots[S.idx]; if (!slot || !map.setLight) return;
+  const s = slot.sun, up = s.alt > 0;
+  try { map.setLight({ anchor:'map', color: up ? '#FFF6E5' : '#DCE3F0', intensity: up ? 0.42 : 0.25,
+    position:[1.4, up ? s.az : 200, up ? Math.min(80, Math.max(20, 90 - s.alt)) : 40] }); } catch(e){}
+}
 function updateTime(){
   const slot = S.slots[S.idx]; if (!slot) return;
+  setSunLight();
   const s = slot.sun, w = slot.wx;
   $('#clock').textContent = hhmm(slot.t);
   const sunTxt = s.alt >= MIN_ALT ? `Sun ${Math.round(s.alt)}° high in the ${compass(s.az)}` : (s.alt > -1 ? 'Sun on the horizon' : 'Sun is down');
