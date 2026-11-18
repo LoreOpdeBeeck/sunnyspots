@@ -270,6 +270,7 @@
     .legend{order:2;margin:8px 16px 0;padding:6px 0;border-top:0}
     #list{overflow:visible}
     .panel:not(.expanded) .more{display:none}
+    .panel.q-active:not(.sheet-min) #list.more{display:block}      /* search results: readable in the half-open sheet too */
     .skycheck{order:9;position:sticky;bottom:0;z-index:2;background:var(--base);padding:9px 16px;border-top:1px solid var(--line)}
 
     /* minimised: one line */
@@ -1364,7 +1365,9 @@ function renderList(){
   if (best !== lastBest){ $('#best').innerHTML = best; lastBest = best; }
   const top = (S._ranked || []).find(o => o.c);
   const emptyView = !top && best.includes('best muted empty');
-  const peek = emptyView ? `<span class="pl">No sunny spots in view</span><span class="pline"><b>Zoom out to see more places</b></span>` : top ? `<span class="pl">${S._nearMe ? 'Best spot near you' : 'Best spot in view'} · ${kindWord(top.c)} · sun until ${hhmm(sunnyUntil(top.c, S.idx))}</span><span class="pline"><span class="pd"></span><span class="pk" title="${kindWord(top.c)}">${kindIcon(top.c)}</span><b>${esc(top.c.name)}</b></span>` : (best ? 'No sunny spot right now · swipe up for more' : '');
+  const nRes = q ? document.querySelectorAll('#sresults .cafe').length : 0;
+  const peek = q ? `<span class="pl">Search results</span><span class="pline"><b>${nRes ? `${nRes}${nRes === 40 ? '+' : ''} place${nRes === 1 ? '' : 's'} match “${esc($('#search').value.trim())}”` : `No match for “${esc($('#search').value.trim())}”`}</b></span>`
+    : emptyView ? `<span class="pl">No sunny spots in view</span><span class="pline"><b>Zoom out to see more places</b></span>` : top ? `<span class="pl">${S._nearMe ? 'Best spot near you' : 'Best spot in view'} · ${kindWord(top.c)} · sun until ${hhmm(sunnyUntil(top.c, S.idx))}</span><span class="pline"><span class="pd"></span><span class="pk" title="${kindWord(top.c)}">${kindIcon(top.c)}</span><b>${esc(top.c.name)}</b></span>` : (best ? 'No sunny spot right now · swipe up for more' : '');
   if (peek !== lastPeek){ $('#peek').innerHTML = peek; lastPeek = peek; }
   markBest(top && top.c);
   const cards = (S._ranked || []).slice(1, 60).map(({ c, walk, wt, skel }) => skel ? `<div class="mini skel"><span class="ic"></span><div class="mt"><div class="sk w60"></div><div class="sk w80"></div><div class="sk w40"></div></div></div>` : `<div class="mini" data-id="${c.id}" role="button" tabindex="0"><span class="ic">${kindIcon(c)}</span><div class="mt"><div class="mn">${esc(c.name)}</div><div class="md">Sun until ${hhmm(sunnyUntil(c, S.idx))} · ${wt}</div><div class="mw">${kindWord(c)} · ${openShort(c)}</div></div></div>`).join('');
@@ -1444,6 +1447,16 @@ function pickResult(id){
   if (!kindOn(c)){ const ch = document.querySelector(`.chip[data-f="${c.kind}"]`); if (ch) ch.click(); }
   focusCafe(id);
 }
+// phones: touching / scrolling the map while the suggestions are open folds them away (the search text stays;
+// the results wait in the minimised sheet, and tapping the search bar brings the suggestions back)
+function collapseSearch(){
+  if (!document.body.classList.contains('searching')) return;
+  S._picked = true; document.body.classList.remove('searching'); $('#search').blur();
+  setSheetState('mini'); renderList();
+}
+$('#map').addEventListener('touchstart', () => { if (isPhone()) collapseSearch(); }, { passive:true });
+$('#map').addEventListener('pointerdown', e => { if (isPhone() && e.pointerType !== 'touch') collapseSearch(); });
+map.on('dragstart', () => { if (isPhone()) collapseSearch(); });
 $('#sresults').addEventListener('click', e => { const el = e.target.closest('.cafe'); if (el) pickResult(+el.dataset.id); });
 // closing a place you found by search: back to the results (or, if there was only one, back to the normal list)
 function afterSearchClose(){
