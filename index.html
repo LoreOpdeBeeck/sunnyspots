@@ -87,6 +87,11 @@
   #best .best:focus{outline:3px solid var(--sun-soft)}
   #best .best.muted{background:var(--sand);border:0;box-shadow:none;color:var(--muted);font-size:14px;line-height:1.45;padding-right:52px}
   #best .best.muted:not([data-id]){padding-right:16px;cursor:default}
+  #best .best.empty{background:#fff;border:1.5px dashed #E8D3A6;color:var(--muted)}
+  #best .best.empty .em-t{font-size:17px;font-weight:700;color:var(--ink);margin-bottom:4px}
+  #best .best.empty .em-next{margin-top:6px}
+  #best .best.empty .lnk{color:var(--sun-ink);font-weight:700;text-decoration:underline;cursor:pointer}
+  #best .zoomout{margin-top:10px;height:40px;padding:0 18px;border:0;border-radius:20px;background:var(--ink);color:#fff;font:inherit;font-weight:600;font-size:15px;cursor:pointer}
   .best-k{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--sun-ink);text-transform:none}
   .best-k::before{content:"";width:14px;height:14px;border-radius:50%;background:var(--sun);box-shadow:0 0 0 3px var(--sun-soft)}
   .best-n{font-size:21px;font-weight:700;letter-spacing:-.01em;margin:4px 0 2px}
@@ -1301,6 +1306,14 @@ function bestCard(r, ranked, cands){
   // nothing sunny now: earliest next sun nearby
   let next = null;
   for (const c of cands){ const t = nextSun(c, S.idx); if (t && (!next || t < next.t)) next = { c, t }; }
+  if (!r.me){
+    // looking at a part of the map: say so, and offer to zoom out
+    const canZoom = map.getZoom() > (map.getMinZoom ? map.getMinZoom() : 12) + 0.2;
+    return `<div class="best muted empty"><div class="em-t">No sunny spots in view ${when === 'now' ? 'right now' : when}</div>
+      <div>${cands.length ? 'None of the places here are in the sun.' : 'There are no cafés or coffee bars in this part of the map.'} ${canZoom ? 'Try zooming out to see more places.' : 'Try another hour or move the map.'}</div>
+      ${next ? `<div class="em-next">Next sun here: <span class="lnk" data-id="${next.c.id}" role="button" tabindex="0">${esc(next.c.name)}</span> at ${hhmm(next.t)}</div>` : ''}
+      ${canZoom ? '<button type="button" class="zoomout">Zoom out</button>' : ''}</div>`;
+  }
   return next ? `<div class="best muted" data-id="${next.c.id}" role="button" tabindex="0">No sunny terrace ${when}${r.me ? ' near you' : ' here'}. Next sun: <b>${esc(next.c.name)}</b> at ${hhmm(next.t)}.</div>`
               : `<div class="best muted">No sunny spot ${when}${r.me ? ' near you' : ' in view'} for the rest of the day.</div>`;
 }
@@ -1328,6 +1341,7 @@ function renderList(){
     const noun = F.coffee && F.cafe ? 'places' : F.coffee ? 'coffee bars' : F.cafe ? 'cafés' : 'places';
     const where = r.me ? 'within 15 min walk' : map.getZoom() < TZOOM - 0.5 ? 'near the map centre' : 'in view';
     $('#count').innerHTML = !F.coffee && !F.cafe ? 'Switch on Coffee bars or Cafés to see places.'
+      : !cands.length && !r.me ? `No ${noun} ${where}`
       : sunDown ? `${cands.length} ${noun} ${where}`
       : `<b>${ranked.length}</b> of ${cands.length} ${noun} ${where} in the sun${S.slots[S.idx].wx ? ` · ${skyLabel(S.slots[S.idx].wx)}` : ''}`;
  const loading = !ranked.length && (inflight > 0 || !S.slots.length || S.cafes.length === 0);
@@ -1337,11 +1351,12 @@ function renderList(){
       html = '';
       S._ranked = Array.from({ length:4 }, () => ({ skel:true }));
     } else
-    html = (ranked.length ? '' : `<div class="hint">${sunDown ? '' : cands.length ? 'Try another hour, move the map or change the filters.' : 'No places here yet. Move the map to a busier street, or change the filters.'}</div>`);
+    html = (ranked.length || sunDown || !r.me ? '' : `<div class="hint">${cands.length ? 'Try another hour, move the map or change the filters.' : 'No places near you. Move the map to a busier street, or change the filters.'}</div>`);
   }
   if (best !== lastBest){ $('#best').innerHTML = best; lastBest = best; }
   const top = (S._ranked || []).find(o => o.c);
-  const peek = top ? `<span class="pl">${S._nearMe ? 'Best spot near you' : 'Best spot in view'} · ${kindWord(top.c)} · sun until ${hhmm(sunnyUntil(top.c, S.idx))}</span><span class="pline"><span class="pd"></span><span class="pk" title="${kindWord(top.c)}">${kindIcon(top.c)}</span><b>${esc(top.c.name)}</b></span>` : (best ? 'No sunny spot right now · swipe up for more' : '');
+  const emptyView = !top && best.includes('best muted empty');
+  const peek = emptyView ? `<span class="pl">No sunny spots in view</span><span class="pline"><b>Zoom out to see more places</b></span>` : top ? `<span class="pl">${S._nearMe ? 'Best spot near you' : 'Best spot in view'} · ${kindWord(top.c)} · sun until ${hhmm(sunnyUntil(top.c, S.idx))}</span><span class="pline"><span class="pd"></span><span class="pk" title="${kindWord(top.c)}">${kindIcon(top.c)}</span><b>${esc(top.c.name)}</b></span>` : (best ? 'No sunny spot right now · swipe up for more' : '');
   if (peek !== lastPeek){ $('#peek').innerHTML = peek; lastPeek = peek; }
   const cards = (S._ranked || []).slice(1, 60).map(({ c, walk, wt, skel }) => skel ? `<div class="mini skel"><span class="ic"></span><div class="mt"><div class="sk w60"></div><div class="sk w80"></div><div class="sk w40"></div></div></div>` : `<div class="mini" data-id="${c.id}" role="button" tabindex="0"><span class="ic">${kindIcon(c)}</span><div class="mt"><div class="mn">${esc(c.name)}</div><div class="md">Sun until ${hhmm(sunnyUntil(c, S.idx))} · ${wt}</div><div class="mw">${kindWord(c)} · ${openShort(c)}</div></div></div>`).join('');
   if (cards !== lastCards){ $('#cards').innerHTML = cards; lastCards = cards; }
@@ -1432,7 +1447,8 @@ $('#search').addEventListener('blur', () => setTimeout(() => { if (!$('#search')
 // keep track of the visible height (shrinks when the keyboard is open)
 (function(){ const vv = window.visualViewport; if (!vv) return; const f = () => document.documentElement.style.setProperty('--vvh', vv.height + 'px'); vv.addEventListener('resize', f); f(); })();
 $('#cards').addEventListener('click', e => { const el = e.target.closest('[data-id]'); if (el) focusCafe(+el.dataset.id); });
-$('#best').addEventListener('click', e => { const el = e.target.closest('[data-id]'); if (el) focusCafe(+el.dataset.id); });
+function zoomOutStep(){ map.easeTo({ zoom:Math.max(map.getMinZoom ? map.getMinZoom() : 12, map.getZoom() - 1.5), duration:600 }); }
+$('#best').addEventListener('click', e => { if (e.target.closest('.zoomout')){ zoomOutStep(); return; } const el = e.target.closest('[data-id]'); if (el) focusCafe(+el.dataset.id); });
 $('#best').addEventListener('keydown', e => { if (e.key === 'Enter'){ const el = e.target.closest('[data-id]'); if (el) focusCafe(+el.dataset.id); } });
 function focusCafe(id, zoomIn = true){
   const c = S.cafes[id]; if (!c) return;
@@ -1518,7 +1534,7 @@ function setSheet(open){ setSheetState(open ? 'full' : 'folded'); }
 function stepSheet(dir){ const i = SHEET.indexOf(sheetState()); setSheetState(SHEET[Math.max(0, Math.min(SHEET.length - 1, i + dir))]); }
 $('#sheet').addEventListener('click', () => setSheet(sheetState() !== 'full'));
 $('#grab').addEventListener('click', () => setSheetState(sheetState() === 'full' ? 'folded' : sheetState() === 'mini' ? 'folded' : 'full'));
-$('#peek').addEventListener('click', () => setSheetState('folded'));
+$('#peek').addEventListener('click', () => { if ($('#best .zoomout')) zoomOutStep(); else setSheetState('folded'); });
 window.addEventListener('resize', () => applySheetHeight());
 (function swipeSheet(){
   const panel = $('.panel');
