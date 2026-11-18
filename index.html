@@ -776,14 +776,16 @@ geo.on('geolocate', pos => {
   const [[w, s], [e, n]] = ANTWERP.bounds, inside = lng > w && lng < e && lat > s && lat < n;
   const first = !S.me;
   S.me = { lng, lat, inside, x:(mercX(lng) - ORIGIN.ox)/ORIGIN.mpu, y:-(mercY(lat) - ORIGIN.oy)/ORIGIN.mpu };
-  updateLocButtons();
-  if (!inside && first) $('#ohnote').textContent = '· you seem to be outside Antwerp';
   if (first && inside) requestTiles();
-  if (S.locPending){ S.locPending = false; S.locMode = inside; if (inside){ S.locFlying = true; map.once('moveend', () => { S.locFlying = false; updateLocButtons(); }); } }
+  if (S.locPending){                                         // the location the visitor asked for has arrived
+    S.locPending = false; locNote(inside ? '' : 'your location is outside the Antwerp map');
+    if (inside) flyToMe();
+  } else if (!inside && first) locNote('you seem to be outside Antwerp');
+  updateLocButtons();
   syncFab();
   scheduleList();
 });
-geo.on('error', () => { S.locPending = false; S.locMode = false; updateLocButtons(); $('#count').innerHTML = '<span style="color:#c2410c">Your location is not available. Allow location access in your browser, or search instead.</span>'; });
+geo.on('error', () => { S.locPending = false; S.locMode = false; locNote(''); updateLocButtons(); $('#count').innerHTML = '<span style="color:#c2410c">Your location is not available. Allow location access in your browser, or search instead.</span>'; });
 geo.on('trackuserlocationend', () => { /* keep last known position for ranking */ });
 
 /* ---------- GPU shadow layer ---------- */
@@ -1562,27 +1564,31 @@ function syncFab(){
 if (window.ResizeObserver) new ResizeObserver(syncFab).observe($('.panel'));
 window.addEventListener('resize', syncFab);
 // Lit only after the visitor taps 📍 / re-center; switched off as soon as they drag the map away.
-S.locMode = false; S.locPending = false; S.locFlying = false;
+/* 📍 / re-center: yellow from the moment you tap them; off again only when YOU move the map away
+   (drag, or a zoom/pinch that takes your location out of view) or when your location can't be found. */
+S.locMode = false; S.locPending = false;
 function updateLocButtons(){
-  // while the map is still flying to you (or your location is still being found), keep it lit
-  if (S.locMode && !S.locFlying && !S.locPending && !(S.me && S.me.inside && meInView())) S.locMode = false;
-  const on = !!(S.locMode || S.locPending);
+  const on = !!S.locMode;
   $('#nearme').classList.toggle('on', on); $('#recenter').classList.toggle('on', on);
   $('#nearme').setAttribute('aria-pressed', on);
 }
+function locNote(text){ $('#ohnote').textContent = text ? '· ' + text : ''; }
+function flyToMe(){
+  map.easeTo({ center:[S.me.lng, S.me.lat], zoom:Math.max(map.getZoom(), 16.5), duration:600 });
+  if (popupId != null && $('.panel').classList.contains('placing')) closePlace();
+}
 function goToMe(){
-  S.locMode = true;
-  if (S.me && S.me.inside){
-    S.locFlying = true; updateLocButtons();
-    const done = () => { if (!S.locFlying) return; S.locFlying = false; updateLocButtons(); };
-    map.once('moveend', done); setTimeout(done, 1500);   // fallback if the map was already there
-    map.easeTo({ center:[S.me.lng, S.me.lat], zoom:Math.max(map.getZoom(), 16.5), duration:600 });
-    if (popupId != null && $('.panel').classList.contains('placing')) closePlace();
-  } else { S.locPending = true; updateLocButtons(); geo.trigger(); }
+  S.locMode = true; updateLocButtons();                       // always yellow on tap
+  if (S.me && S.me.inside) flyToMe();
+  else if (S.me) locNote('your location is outside the Antwerp map');
+  else if (!S.locPending){ S.locPending = true; locNote('finding your location…'); try { geo.trigger(); } catch(e){} }
 }
 $('#recenter').addEventListener('click', goToMe);
-map.on('moveend', updateLocButtons);
-map.on('dragstart', () => { if (S.locMode || S.locPending){ S.locMode = false; S.locFlying = false; S.locPending = false; updateLocButtons(); } });
+map.on('dragstart', () => { if (S.locMode){ S.locMode = false; updateLocButtons(); } });
+map.on('moveend', e => {
+  // only a move made by the visitor (pinch / scroll-zoom) can switch it off; our own camera moves can't
+  if (S.locMode && e && e.originalEvent && S.me && S.me.inside && !meInView()){ S.locMode = false; updateLocButtons(); }
+});
 
 /* ---------- slim time bar on phones: tap the time to show the slider ---------- */
 $('#clock').setAttribute('role', 'button'); $('#clock').setAttribute('tabindex', '0'); $('#clock').setAttribute('aria-label', 'Show the time slider');
