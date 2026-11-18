@@ -590,6 +590,22 @@ const todayStr = () => new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeri
 const HHMM = new Intl.DateTimeFormat('en-GB',{timeZone:TZ,hour:'2-digit',minute:'2-digit'});
 const hhmm = ms => HHMM.format(new Date(ms));
 
+/* ---------- usage stats (GoatCounter: anonymous counts of what people use) ---------- */
+const trackedOnce = new Set();
+function track(name, title, once){
+  if (once){ if (trackedOnce.has(name)) return; trackedOnce.add(name); }
+  try { if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path:name, title:title || name, event:true }); } catch(e){}
+}
+document.addEventListener('click', e => {
+  const t = e.target.closest ? e.target : null; if (!t) return;
+  if (t.closest('.pop-actions .rep')) track('report-wrong');
+  else if (t.closest('.pop-actions a')) track('walk-there');
+  else if (t.closest('[data-share]')) track('share');
+  else if (t.closest('.cn-later')) track('jump-to-brighter-hour');
+  else if (t.closest('.btn.q')) track('time-' + (t.closest('.btn.q').dataset.q === '0' ? 'now' : '+' + t.closest('.btn.q').dataset.q + 'min'));
+  else if (t.closest('.chip')){ const ch = t.closest('.chip'); track('filter-' + ch.dataset.f + (ch.classList.contains('on') ? '-off' : '-on')); }
+}, true);
+
 /* ---------- sun (after SunCalc) ---------- */
 function sunPos(ms, lat, lon){
   const d = ms/86400000 - 0.5 + 2440588 - 2451545;
@@ -722,6 +738,7 @@ let SKY = null;
 try { const v = JSON.parse(localStorage.getItem(SKY_KEY) || 'null'); if (v && Date.now() - v.t < SKY_FULL + SKY_FADE) SKY = v; } catch(e){}
 function skyWeight(t){ if (!SKY) return 0; const d = t - SKY.t; if (d < -15*60000 || d > SKY_FULL + SKY_FADE) return 0; return d <= SKY_FULL ? 1 : 1 - (d - SKY_FULL)/SKY_FADE; }
 function setSky(kind){
+  track(kind ? 'sky-' + kind : 'sky-use-forecast');
   SKY = kind ? { k:kind, t:Date.now() } : null;
   try { kind ? localStorage.setItem(SKY_KEY, JSON.stringify(SKY)) : localStorage.removeItem(SKY_KEY); } catch(e){}
   applyWeather(); renderSkyCheck();
@@ -1484,6 +1501,7 @@ function updateSearching(){ document.body.classList.toggle('searching', isPhone(
 // pick a search result: close the dropdown + keyboard, show the place; make sure its type isn't filtered away
 function pickResult(id){
   const c = S.cafes[id]; if (!c) return;
+  track('search-pick', 'Search: ' + c.name);
   S._picked = true; S._fromSearch = document.querySelectorAll('#sresults .cafe').length;
   document.body.classList.remove('searching'); $('#search').blur();
   if (!kindOn(c)){ const ch = document.querySelector(`.chip[data-f="${c.kind}"]`); if (ch) ch.click(); }
@@ -1520,11 +1538,12 @@ $('#search').addEventListener('blur', () => setTimeout(() => { if (!$('#search')
 // keep track of the visible height (shrinks when the keyboard is open)
 (function(){ const vv = window.visualViewport; if (!vv) return; const f = () => document.documentElement.style.setProperty('--vvh', vv.height + 'px'); vv.addEventListener('resize', f); f(); })();
 $('#cards').addEventListener('click', e => { const el = e.target.closest('[data-id]'); if (el) focusCafe(+el.dataset.id); });
-function zoomOutStep(){ map.easeTo({ zoom:Math.max(map.getMinZoom ? map.getMinZoom() : 12, map.getZoom() - 1.5), duration:600 }); }
+function zoomOutStep(){ track('zoom-out'); map.easeTo({ zoom:Math.max(map.getMinZoom ? map.getMinZoom() : 12, map.getZoom() - 1.5), duration:600 }); }
 $('#best').addEventListener('click', e => { if (e.target.closest('.zoomout')){ zoomOutStep(); return; } const el = e.target.closest('[data-id]'); if (el) focusCafe(+el.dataset.id); });
 $('#best').addEventListener('keydown', e => { if (e.key === 'Enter'){ const el = e.target.closest('[data-id]'); if (el) focusCafe(+el.dataset.id); } });
 function focusCafe(id, zoomIn = true){
   const c = S.cafes[id]; if (!c) return;
+  track('open-place', c.name);
   if (isPhone() && sheetState() !== 'folded') setSheetState('folded');
   // phones: centre the place in the map you can actually see, between the search bar and the sheet.
   // Use the sheet's height *after* it has folded (it may still be animating from full / minimised).
@@ -1564,6 +1583,7 @@ function setHash(c){ try { history.replaceState(null, '', '#' + slugOf(c)); } ca
 function openFromHash(){
   const h = decodeURIComponent((location.hash || '').slice(1)); if (!h.startsWith('cafe-')) return false;
   const c = S.cafes.find(x => slugOf(x) === h); if (!c) return false;
+  track('shared-link-opened', 'Shared link: ' + c.name, true);
   focusCafe(c.id); return true;
 }
 window.addEventListener('hashchange', openFromHash);
@@ -1760,6 +1780,7 @@ function flyToMe(){
   if (popupId != null && $('.panel').classList.contains('placing')) closePlace();
 }
 function goToMe(){
+  track('near-me');
   S.locMode = true; updateLocButtons();                       // always yellow on tap
   if (S.me && S.me.inside) flyToMe();
   else if (S.me) locNote('your location is outside the Antwerp map');
@@ -1784,6 +1805,7 @@ $('#clock').addEventListener('click', () => { if (isPhone()) $('.timebar').class
 /* ---------- controls ---------- */
 let raf = null;
 $('#cloudnote').addEventListener('click', e => { const b = e.target.closest('.cn-later'); if (!b) return; const sl = $('#slider'); sl.value = b.dataset.idx; sl.dispatchEvent(new Event('input')); });
+$('#slider').addEventListener('change', () => track('hour-slider', 'Used the hour slider', true));
 $('#slider').addEventListener('input', e => { S.idx = +e.target.value; if (!raf) raf = requestAnimationFrame(() => { raf = null; updateTime(); }); });
 document.body.insertAdjacentHTML('beforeend', '<button id="now" hidden></button>');
 $('#now').addEventListener('click', () => {
@@ -1818,5 +1840,7 @@ $('.legend').addEventListener('toggle', () => {
   setTimeout(() => lg.scrollIntoView({ block:'nearest', behavior:'smooth' }), isPhone() ? 340 : 30);
 });
 </script>
+<!-- visit counts: GoatCounter, no cookies and no personal data stored -->
+<script data-goatcounter="https://sunnyspots.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 </body>
 </html>
