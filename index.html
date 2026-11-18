@@ -758,6 +758,7 @@ geo.on('geolocate', pos => {
   updateLocButtons();
   if (!inside && first) $('#ohnote').textContent = '· you seem to be outside Antwerp';
   if (first && inside) requestTiles();
+  if (S.locPending && inside){ S.locMode = true; S.locPending = false; }
   syncFab();
   scheduleList();
 });
@@ -1529,19 +1530,24 @@ function syncFab(){
 }
 if (window.ResizeObserver) new ResizeObserver(syncFab).observe($('.panel'));
 window.addEventListener('resize', syncFab);
+// Lit only after the visitor taps 📍 / re-center; switched off as soon as they drag the map away.
+S.locMode = false; S.locPending = false;
 function updateLocButtons(){
-  const on = typeof meInView === 'function' && meInView();
+  if (S.locMode && !(S.me && S.me.inside && meInView())) S.locMode = false;
+  const on = !!(S.locMode && S.me && S.me.inside);
   $('#nearme').classList.toggle('on', on); $('#recenter').classList.toggle('on', on);
   $('#nearme').setAttribute('aria-pressed', on);
 }
 function goToMe(){
   if (S.me && S.me.inside){
+    S.locMode = true; updateLocButtons();
     map.easeTo({ center:[S.me.lng, S.me.lat], zoom:Math.max(map.getZoom(), 16.5), duration:600 });
     if (popupId != null && $('.panel').classList.contains('placing')) closePlace();
-  } else geo.trigger();
+  } else { S.locPending = true; geo.trigger(); }
 }
 $('#recenter').addEventListener('click', goToMe);
 map.on('moveend', updateLocButtons);
+map.on('dragstart', () => { if (S.locMode){ S.locMode = false; updateLocButtons(); } });
 
 /* ---------- slim time bar on phones: tap the time to show the slider ---------- */
 $('#clock').setAttribute('role', 'button'); $('#clock').setAttribute('tabindex', '0'); $('#clock').setAttribute('aria-label', 'Show the time slider');
