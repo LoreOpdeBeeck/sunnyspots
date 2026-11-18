@@ -845,7 +845,7 @@ function computeCafe(c){
 })();
 const map = new maplibregl.Map({
   container:'map', style:'https://tiles.openfreemap.org/styles/positron',
-  center:ANTWERP.center, zoom:15.6, minZoom:12, maxZoom:19, maxBounds:ANTWERP.bounds,
+  center:ANTWERP.center, zoom:15.6, minZoom:12, maxZoom:19, maxBounds:ANTWERP.bounds, pitch:35, maxPitch:50,
   dragRotate:false, pitchWithRotate:false, touchPitch:false, attributionControl:false, fadeDuration:0
 });
 map.touchZoomRotate.disableRotation();
@@ -974,7 +974,7 @@ const shadowLayer = {
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.tex);
     gl.uniform1i(this.loc.tex, 0);
     gl.uniform2f(this.loc.size, gl.drawingBufferWidth, gl.drawingBufferHeight);
-    gl.uniform1f(this.loc.alpha, night ? (sun.alt < -1 ? 0.55 : 0.4) : 0.32*(0.15 + 0.85*clearNow()));
+    gl.uniform1f(this.loc.alpha, night ? (sun.alt < -1 ? 0.55 : 0.4) : 0.40*(0.5 + 0.5*clearNow()));
     gl.uniform1f(this.loc.night, night ? 1 : 0);
     gl.uniform3f(this.loc.col, 0.08, 0.10, 0.24);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.quad);
@@ -1277,6 +1277,18 @@ map.on('load', () => {
     if (css){ document.documentElement.style.background = css; document.body.style.background = css; $('#map').style.background = css; }
   } catch(e){}
   map.addLayer(shadowLayer, firstSymbol);
+  // buildings as soft 3D blocks (the map is tilted slightly), so shade on the street reads apart from the buildings
+  try {
+    const vsrc = Object.keys(st.sources).find(k => st.sources[k].type === 'vector');
+    for (const l of st.layers) if (l['source-layer'] === 'building' && (l.type === 'fill' || l.type === 'fill-extrusion')) map.setLayoutProperty(l.id, 'visibility', 'none');
+    map.addLayer({ id:'buildings-3d', type:'fill-extrusion', source:vsrc, 'source-layer':'building', minzoom:14,
+      filter:['!=', ['get', 'hide_3d'], true],
+      paint:{
+        'fill-extrusion-color':'#E6E0D5',
+        'fill-extrusion-height':['interpolate', ['linear'], ['zoom'], 14, 0, 15, ['coalesce', ['get', 'render_height'], 8]],
+        'fill-extrusion-base':['interpolate', ['linear'], ['zoom'], 14, 0, 15, ['coalesce', ['get', 'render_min_height'], 0]],
+        'fill-extrusion-opacity':0.92, 'fill-extrusion-vertical-gradient':true } }, firstSymbol);
+  } catch(e){ console.warn('3D buildings', e); }
   map.addSource('cafes', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
   map.addLayer({ id:'cafe-glow', type:'circle', source:'cafes',
     paint:{ 'circle-radius':['interpolate',['linear'],['zoom'],14,11,18,20], 'circle-color':'#FFB020', 'circle-blur':0.7, 'circle-opacity':0 } });
