@@ -26,12 +26,12 @@
     --font:-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, "Segoe UI", system-ui, sans-serif;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{margin:0;height:100%;font-family:var(--font);color:var(--ink);overflow:hidden;background:var(--sand)}
+  html,body{margin:0;height:100%;font-family:var(--font);color:var(--ink);overflow:hidden;background:#F2F3F0}
   html{overscroll-behavior:none}
   body{height:100vh;height:100dvh;position:relative;overscroll-behavior:none}
   /* soft fade behind the phone's status bar (clock / battery) so they stay readable over the map */
   .topfade{display:none}
-  @media (max-width:700px){ .topfade{display:block;position:absolute;z-index:2;top:0;left:0;right:0;height:calc(var(--st) + 6px);pointer-events:none;
+  @media (max-width:700px) and (display-mode:standalone){ .topfade{display:block;position:absolute;z-index:2;top:0;left:0;right:0;height:calc(var(--st) + 6px);pointer-events:none;
     background:linear-gradient(rgba(250,248,244,.7), rgba(250,248,244,.35) 60%, rgba(250,248,244,0))} }
   :root{--st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);--sl:env(safe-area-inset-left,0px);--sr:env(safe-area-inset-right,0px)}
   button,.chip,.cafe,.mini,.best{touch-action:manipulation}
@@ -1195,6 +1195,13 @@ map.on('load', () => {
   const st = map.getStyle();
   const srcId = Object.keys(st.sources).find(k => st.sources[k].type === 'vector');
   const firstSymbol = (st.layers.find(l => l.type === 'symbol') || {}).id;
+  // Safari fills the strips above and below the page (behind the clock and the tab bar) with the page's
+  // background colour. Use the map's own land colour so those strips blend into the map.
+  try {
+    const bgl = st.layers.find(l => l.type === 'background'), col = bgl && map.getPaintProperty(bgl.id, 'background-color');
+    const css = typeof col === 'string' ? col : (col && col.r != null ? `rgba(${Math.round(col.r*255)},${Math.round(col.g*255)},${Math.round(col.b*255)},1)` : null);
+    if (css){ document.documentElement.style.background = css; document.body.style.background = css; $('#map').style.background = css; }
+  } catch(e){}
   map.addLayer(shadowLayer, firstSymbol);
   map.addSource('cafes', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
   map.addLayer({ id:'cafe-glow', type:'circle', source:'cafes',
