@@ -153,6 +153,14 @@
   .cafe .u.closed{color:#B4531A}
   .cafe .u.dim{color:var(--muted)}
   .cafe.is-closed .n{color:var(--muted)}
+  .cafe .rt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+  .cafe .rt .n{flex:none}
+  .cafe .rd{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cafe .rd .op{color:#2F7D4F;font-weight:600} .cafe .rd .cl{color:#B4531A;font-weight:600}
+  .cafe mark{background:none;color:inherit;font-weight:800;text-decoration:underline;text-decoration-color:var(--sun);text-decoration-thickness:3px;text-underline-offset:2px}
+  .cafe.res{min-height:62px}
+  .shead{padding:12px 14px 4px;font-size:13px;color:var(--muted)}
+  .hint b{color:var(--ink)}
   .hint{padding:16px 12px;color:var(--muted);font-size:14px;line-height:1.5}
   .zoomin{margin:4px 12px 12px}
 
@@ -1298,14 +1306,15 @@ function renderList(){
   S._ranked = [];
   $('.panel').classList.toggle('q-active', !!q);
   if (q){
-    const r = refPoint();
-    const hits = S.cafes.filter(c => kindOn(c) && c.norm.includes(q))
-      .sort((a, b) => (a.norm.startsWith(q) ? 0 : 1) - (b.norm.startsWith(q) ? 0 : 1) || a.name.localeCompare(b.name)).slice(0, 40);
-    $('#count').innerHTML = `<b>${hits.length}</b> place${hits.length === 1 ? '' : 's'} match “${esc($('#search').value.trim())}”`;
-    const shtml = hits.length ? hits.map(c => `<div class="cafe" data-id="${c.id}"><span class="ic">${kindIcon(c)}</span><span class="n">${esc(c.name)}</span>${statusShort(c)}</div>`).join('') : '<div class="hint">No café or coffee bar with that name.</div>';
-    if (shtml !== lastSres){ $('#sresults').innerHTML = shtml; lastSres = shtml; }
-    html = hits.length ? hits.map(c => `<div class="cafe" data-id="${c.id}"><span class="ic">${kindIcon(c)}</span><span class="n">${esc(c.name)}</span>${r.me ? `<span class="u dim">${walkMin(c, r)} min · </span>` : ''}${statusShort(c)}</div>`).join('')
-      : '<div class="hint">No café or coffee bar with that name. Check the spelling, or switch on both filters.</div>';
+    const { hits, fuzzy } = searchPlaces(q);
+    const raw = $('#search').value.trim();
+    $('#count').innerHTML = hits.length ? (fuzzy ? `No exact match for “${esc(raw)}”. Did you mean…` : `<b>${hits.length}</b> place${hits.length === 1 ? '' : 's'} match “${esc(raw)}”`) : `No match for “${esc(raw)}”`;
+    const rows = hits.map(c => resultRow(c, fuzzy ? '' : q)).join('');
+    const head = fuzzy ? '<div class="shead">No exact match. Did you mean…</div>' : '';
+    const none = `<div class="hint"><b>No café or coffee bar called “${esc(raw)}”.</b><br>Check the spelling, or try part of the name.</div>`;
+    const shtml = hits.length ? head + rows : none;
+    if (shtml !== lastSres){ $('#sresults').innerHTML = shtml; lastSres = shtml; $('#sresults').scrollTop = 0; }
+    html = hits.length ? rows : none;
   } else {
     const r = refPoint(), cands = candidates(r);
     const ranked = cands.map(c => ({ c, walk:walkMin(c, r), wt:walkText(c, r) })).map(o => ({ ...o, s:score(o.c, r, o.walk) }))
@@ -1334,6 +1343,48 @@ function renderList(){
   if (cards !== lastCards){ $('#cards').innerHTML = cards; lastCards = cards; }
   if (html !== lastListHtml){ $('#list').innerHTML = html; lastListHtml = html; }
 }
+/* search: name starts with it > a word starts with it > anywhere in the name; then the closest first.
+   Spaces don't matter ("koffieklub" finds "koffie klub"), and small typos get a "did you mean". */
+function searchPlaces(q){
+  const r = refPoint(), qs = q.replace(/ /g, '');
+  const dist = c => Math.hypot(c.x - r.x, c.y - r.y);
+  const rank = c => c.norm.startsWith(q) ? 0 : (' ' + c.norm).includes(' ' + q) ? 1 : (c.norm.includes(q) || c.norm.replace(/ /g, '').includes(qs)) ? 2 : -1;
+  let hits = S.cafes.map(c => ({ c, k:rank(c) })).filter(o => o.k >= 0)
+    .sort((a, b) => a.k - b.k || dist(a.c) - dist(b.c)).slice(0, 40).map(o => o.c);
+  if (hits.length || qs.length < 4) return { hits, fuzzy:false };
+  const tol = qs.length <= 6 ? 1 : 2;
+  hits = S.cafes.map(c => ({ c, d:fuzzyDist(qs, c.norm) })).filter(o => o.d <= tol)
+    .sort((a, b) => a.d - b.d || dist(a.c) - dist(b.c)).slice(0, 8).map(o => o.c);
+  return { hits, fuzzy:true };
+}
+// smallest edit distance between the query and any stretch of the name (spaces ignored)
+function fuzzyDist(q, name){
+  const t = name.replace(/ /g, ''); let prev = new Array(q.length + 1).fill(0).map((_, i) => i), best = prev[q.length];
+  for (let j = 1; j <= t.length; j++){
+    const cur = [0];
+    for (let i = 1; i <= q.length; i++) cur[i] = Math.min(prev[i] + 1, cur[i-1] + 1, prev[i-1] + (q[i-1] === t[j-1] ? 0 : 1));
+    best = Math.min(best, cur[q.length]); prev = cur;
+  }
+  return best;
+}
+// bold the part of the name that matches what you typed
+function markMatch(name, q){
+  if (!q) return esc(name);
+  // normalise letter by letter, remembering where each letter came from, so accents/apostrophes still line up
+  let n = '', at = [];
+  [...name].forEach((ch, k) => { const x = normalize(ch) || ' '; for (const y of x){ if (y === ' ' && (n.endsWith(' ') || !n)) continue; n += y; at.push(k); } });
+  const chars = [...name], i = n.indexOf(q); if (i < 0) return esc(name);
+  const s0 = at[i], s1 = at[Math.min(i + q.length, at.length) - 1] + 1;
+  return esc(chars.slice(0, s0).join('')) + '<mark>' + esc(chars.slice(s0, s1).join('')) + '</mark>' + esc(chars.slice(s1).join(''));
+}
+function resultRow(c, q){
+  const r = refPoint(), from = (S.me && S.me.inside) ? S.me : r;
+  const m = Math.hypot(c.x - from.x, c.y - from.y), min = Math.max(1, Math.round(m*1.3/WALK_M_PER_MIN));
+  const away = min <= 30 ? `${min} min walk` : `${(m*1.3/1000).toFixed(1)} km`;
+  const op = isOpenNow(c), sunTag = op === 0 || !c.ready ? '' : c.st[S.idx] ? `<span class="u sun">Sun until ${hhmm(sunnyUntil(c, S.idx))}</span>` : '<span class="u dim">In the shade</span>';
+  const hrs = op === -1 ? '' : ` · ${openShort(c)}`;
+  return `<div class="cafe res${op === 0 ? ' is-closed' : ''}" data-id="${c.id}" role="option" tabindex="-1"><span class="ic">${kindIcon(c)}</span><span class="rt"><span class="n">${markMatch(c.name, q)}</span><span class="rd">${kindWord(c)}${hrs} · ${away}</span></span>${sunTag}</div>`;
+}
 function openShort(c){
   const op = isOpenNow(c), slot = S.slots[S.idx];
   if (op === 1){ const u = c.hours && openUntil(c.hours, slot.dow, slot.min); return '<span class="op">Open</span>' + (u != null ? ` until ${u === 0 ? '00:00' : fmtMin(u)}` : ''); }
@@ -1348,7 +1399,22 @@ function updateSearching(){ document.body.classList.toggle('searching', isPhone(
   const place = () => { if (isPhone()){ if (sbox.parentNode !== document.body) document.body.appendChild(sbox); } else if (sbox.parentNode !== home){ home.insertBefore(sbox, anchor); document.body.classList.remove('searching'); } };
   queueMicrotask(() => { place(); if (window.matchMedia) window.matchMedia('(max-width:700px)').addEventListener('change', place); });
 })();
-$('#sresults').addEventListener('click', e => { const el = e.target.closest('.cafe'); if (!el) return; S._picked = true; document.body.classList.remove('searching'); $('#search').blur(); focusCafe(+el.dataset.id); });
+// pick a search result: close the dropdown + keyboard, show the place; make sure its type isn't filtered away
+function pickResult(id){
+  const c = S.cafes[id]; if (!c) return;
+  S._picked = true; S._fromSearch = document.querySelectorAll('#sresults .cafe').length;
+  document.body.classList.remove('searching'); $('#search').blur();
+  if (!kindOn(c)){ const ch = document.querySelector(`.chip[data-f="${c.kind}"]`); if (ch) ch.click(); }
+  focusCafe(id);
+}
+$('#sresults').addEventListener('click', e => { const el = e.target.closest('.cafe'); if (el) pickResult(+el.dataset.id); });
+// closing a place you found by search: back to the results (or, if there was only one, back to the normal list)
+function afterSearchClose(){
+  if (!S._fromSearch || !$('#search').value.trim()) { S._fromSearch = 0; return; }
+  const many = S._fromSearch > 1; S._fromSearch = 0;
+  if (many && isPhone()){ S._picked = false; updateSearching(); }
+  else if (!many){ $('#search').value = ''; S._picked = false; updateClear(); document.body.classList.remove('searching'); renderList(); }
+}
 $('#search').addEventListener('input', () => { S._picked = false; updateSearching(); updateClear(); });
 function updateClear(){ $('.field').classList.toggle('has-text', $('#search').value.length > 0); }
 // keep the clear button down (pointerdown) so tapping it doesn't blur the field first
@@ -1486,11 +1552,11 @@ let searchTimer = null;
 $('#search').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(renderList, 120); });
 $('#search').addEventListener('keydown', e => {
   if (e.key === 'Escape'){ e.target.value = ''; document.body.classList.remove('searching'); e.target.blur(); updateClear(); renderList(); }
-  if (e.key === 'Enter'){ const first = $('#list .cafe'); if (first) first.click(); }
+  if (e.key === 'Enter'){ e.preventDefault(); clearTimeout(searchTimer); renderList(); const first = $('#sresults .cafe'); if (first) pickResult(+first.dataset.id); else e.target.blur(); }
 });
 $('#list').addEventListener('click', e => {
   if (e.target.id === 'zoomin'){ map.easeTo({ zoom:15.6, duration:600 }); return; }
-  const el = e.target.closest('.cafe'); if (el) focusCafe(+el.dataset.id);
+  const el = e.target.closest('.cafe'); if (el) (el.classList.contains('res') ? pickResult : focusCafe)(+el.dataset.id);
 });
 function mixHex(a, b, k){ const h = x => [1,3,5].map(i => parseInt(x.slice(i, i+2), 16)); const A = h(a), B = h(b); return '#' + A.map((v, i) => Math.round(v + (B[i] - v)*k).toString(16).padStart(2, '0')).join(''); }
 function esc(s){ return String(s ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
@@ -1543,12 +1609,12 @@ function openPopup(id, refreshOnly){
   if (popup) popup.remove();
   popupId = id;
   popup = new maplibregl.Popup({ offset:14, maxWidth:'290px', anchor:'bottom' }).setLngLat([c.lng, c.lat]).setHTML(html).addTo(map);
-  popup.on('close', () => { if (popupId === id){ popupId = null; clearHighlight(); try { history.replaceState(null, '', location.pathname + location.search); } catch(e){} } });
+  popup.on('close', () => { if (popupId === id){ popupId = null; clearHighlight(); if (!isPhone()) S._fromSearch = 0; try { history.replaceState(null, '', location.pathname + location.search); } catch(e){} } });
 }
 
 document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-share]'); if (b) shareCafe(+b.dataset.share); });
 function closePlace(){
-  $('.panel').classList.remove('placing'); popupId = null; clearHighlight();
+  $('.panel').classList.remove('placing'); popupId = null; clearHighlight(); afterSearchClose();
   try { history.replaceState(null, '', location.pathname + location.search); } catch(e){}
 }
 document.addEventListener('click', e => { if (e.target.closest && e.target.closest('.pl-x')) closePlace(); });
