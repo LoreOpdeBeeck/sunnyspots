@@ -65,6 +65,15 @@
   .place .pop-actions{margin:12px 0 4px}
   .place .pop-actions a,.place .pop-actions button{padding:10px 16px;font-size:15px}
   .place ul{margin:6px 0;padding-left:20px}
+  .pl-peek{display:none}
+  .pl-peek .pl{display:block;font-size:12px;font-weight:600;color:var(--sun-ink);margin:0 0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pl-peek .pline b{font-size:16px}
+  .pl-peek .pline{display:flex;align-items:center;gap:8px;padding:3px 0 3px 4px;font-size:15px;color:var(--muted);white-space:nowrap;overflow:hidden}
+  .pl-peek .pline b{color:var(--ink);overflow:hidden;text-overflow:ellipsis;flex:0 1 auto;min-width:0}
+  .pl-peek .pd{flex:none;width:10px;height:10px;border-radius:50%;background:var(--sun);box-shadow:0 0 0 3px var(--sun-soft)}
+  .pl-peek .pd.shade{background:var(--shade);box-shadow:0 0 0 3px #E3E6EC}
+  .pl-peek .pk{flex:none;font-size:16px}
+  .pl-peek .pt{flex:0 4 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
   .pl-sun{margin:10px 0 2px;font-size:16px}
   .pop-actions .rep{border:0 !important;background:none !important;padding:8px 4px !important;color:var(--muted) !important;font-weight:500 !important;text-decoration:underline;font-size:13px !important}
 
@@ -248,10 +257,12 @@
     .panel.sheet-min #best,.panel.sheet-min #cards,.panel.sheet-min .skycheck,.panel.sheet-min #count,.panel.sheet-min .sub{display:none}
     .panel.sheet-min{overflow:hidden}
     .panel.sheet-min .peek{display:block;margin:0 0 6px;padding:0 0 4px 4px;font-size:15px;color:var(--muted);cursor:pointer;white-space:nowrap;overflow:hidden}
-    .peek .pl{display:block;font-size:12px;font-weight:600;color:var(--sun-ink);margin:0 0 3px -4px}
+    .peek .pl{display:block;font-size:12px;font-weight:600;color:var(--sun-ink);margin:0 0 3px -4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .panel.sheet-min .peek .pline b{font-size:16px}
     .peek .pline{display:flex;align-items:center;gap:8px;padding:3px 0}
     .peek .pk{flex:none;font-size:16px}
-    .peek .pt{flex:none}
+    .peek .pt{flex:0 4 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+    .panel.sheet-min .peek .pline b{flex:0 1 auto;min-width:0}
     .panel.sheet-min .peek b{color:var(--ink);overflow:hidden;text-overflow:ellipsis}
     .peek .pd{flex:none;width:10px;height:10px;border-radius:50%;background:var(--sun);box-shadow:0 0 0 3px var(--sun-soft)}
 
@@ -264,6 +275,9 @@
     .panel.placing.sheet-min .pl-top h3{font-size:18px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .panel.placing.sheet-min .pl-x{width:30px;height:30px}
     .panel.placing header{padding-bottom:0}
+    .panel.placing.sheet-min .pl-top h3{display:none}
+    .panel.placing.sheet-min .pl-peek{display:block;min-width:0}
+    .panel.placing.sheet-min .pl-top > div{min-width:0}
 
     /* search: results drop down under the search bar, clear of the keyboard */
     body.searching .panel, body.searching .timebar{display:none}
@@ -1304,7 +1318,7 @@ function renderList(){
   }
   if (best !== lastBest){ $('#best').innerHTML = best; lastBest = best; }
   const top = (S._ranked || []).find(o => o.c);
-  const peek = top ? `<span class="pl">${S._nearMe ? 'Best spot near you' : 'Best spot in view'}</span><span class="pline"><span class="pd"></span><span class="pk" title="${kindWord(top.c)}">${kindIcon(top.c)}</span><b>${esc(top.c.name)}</b><span class="pt">· ${kindWord(top.c)} · until ${hhmm(sunnyUntil(top.c, S.idx))}</span></span>` : (best ? 'No sunny spot right now · swipe up for more' : '');
+  const peek = top ? `<span class="pl">${S._nearMe ? 'Best spot near you' : 'Best spot in view'} · ${kindWord(top.c)} · sun until ${hhmm(sunnyUntil(top.c, S.idx))}</span><span class="pline"><span class="pd"></span><span class="pk" title="${kindWord(top.c)}">${kindIcon(top.c)}</span><b>${esc(top.c.name)}</b></span>` : (best ? 'No sunny spot right now · swipe up for more' : '');
   if (peek !== lastPeek){ $('#peek').innerHTML = peek; lastPeek = peek; }
   const cards = (S._ranked || []).slice(1, 60).map(({ c, walk, wt, skel }) => skel ? `<div class="mini skel"><span class="ic"></span><div class="mt"><div class="sk w60"></div><div class="sk w80"></div><div class="sk w40"></div></div></div>` : `<div class="mini" data-id="${c.id}" role="button" tabindex="0"><span class="ic">${kindIcon(c)}</span><div class="mt"><div class="mn">${esc(c.name)}</div><div class="md">Sun until ${hhmm(sunnyUntil(c, S.idx))} · ${wt}</div><div class="mw">${kindWord(c)} · ${openShort(c)}</div></div></div>`).join('');
   if (cards !== lastCards){ $('#cards').innerHTML = cards; lastCards = cards; }
@@ -1497,7 +1511,9 @@ function openPopup(id, refreshOnly){
   const fine = '<div class="fine">Sun is estimated from building shapes and heights. Trees and awnings are not included.</div>';
   if (isPhone()){
     // Google Maps style: details in the bottom sheet, actions right under the name
-    $('#place').innerHTML = `<div class="pl-top"><div><div class="kind">${kindIcon(c)} ${kindWord(c)}</div><h3>${esc(c.name)}</h3></div><button type="button" class="pl-x" aria-label="Back to the list">✕</button></div>${hoursHtml(c)}${extra}<div class="pl-sun">${bodyNow}</div>${actions}${body.slice(bodyNow.length)}${fine}`;
+    const sunNow = c.ready && c.st[S.idx];
+    const plPeek = `<div class="pl-peek"><span class="pl">Selected spot · ${kindWord(c)} · ${!c.ready ? 'checking the sun…' : sunNow ? `sun until ${hhmm(sunnyUntil(c, S.idx))}` : 'in the shade'}</span><span class="pline"><span class="pd${sunNow ? '' : ' shade'}"></span><span class="pk">${kindIcon(c)}</span><b>${esc(c.name)}</b></span></div>`;
+    $('#place').innerHTML = `<div class="pl-top"><div><div class="kind">${kindIcon(c)} ${kindWord(c)}</div><h3>${esc(c.name)}</h3>${plPeek}</div><button type="button" class="pl-x" aria-label="Back to the list">✕</button></div>${hoursHtml(c)}${extra}<div class="pl-sun">${bodyNow}</div>${actions}${body.slice(bodyNow.length)}${fine}`;
     if (refreshOnly) return;
     if (popup){ popup.remove(); popup = null; }
     popupId = id;
