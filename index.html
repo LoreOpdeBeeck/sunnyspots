@@ -1624,7 +1624,9 @@ window.addEventListener('resize', () => applySheetHeight());
   panel.addEventListener('touchstart', e => {
     if (!isPhone() || e.touches.length !== 1) return;
     const p = e.touches[0];
-    t = { x:p.clientX, y:p.clientY, t0:performance.now(), h0:panel.offsetHeight, dy:0, lock:null, last:[] };
+    // the top of the sheet (handle + best spot, pinned while the list scrolls) always drags the sheet
+    const head = !!(e.target.closest && (e.target.closest('.panel > header') || e.target.closest('.pl-top')));
+    t = { x:p.clientX, y:p.clientY, t0:performance.now(), h0:panel.offsetHeight, dy:0, lock:null, last:[], head };
   }, { passive:true });
   panel.addEventListener('touchmove', e => {
     if (!t) return;
@@ -1634,7 +1636,8 @@ window.addEventListener('resize', () => applySheetHeight());
     const st = sheetState();
     if (!t.dragging){
       // let the content scroll when it can: scrolled down already, or pulling up on a full sheet
-      if (panel.scrollTop > 0 || (dy < 0 && st === 'full')){ t = null; return; }
+      if (dy < 0 && st === 'full'){ t = null; return; }
+      if (panel.scrollTop > 0 && !t.head){ t = null; return; }
       t.dragging = true; panel.classList.add('dragging');
     }
     const snaps = snapHeights();
