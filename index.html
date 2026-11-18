@@ -27,7 +27,12 @@
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%;font-family:var(--font);color:var(--ink);overflow:hidden;background:var(--sand)}
-  body{height:100vh;height:100dvh;position:fixed;inset:0;overscroll-behavior:none}
+  html{overscroll-behavior:none}
+  body{height:100vh;height:100dvh;position:relative;overscroll-behavior:none}
+  /* soft fade behind the phone's status bar (clock / battery) so they stay readable over the map */
+  .topfade{display:none}
+  @media (max-width:700px){ .topfade{display:block;position:absolute;z-index:2;top:0;left:0;right:0;height:calc(var(--st) + 6px);pointer-events:none;
+    background:linear-gradient(rgba(250,248,244,.7), rgba(250,248,244,.35) 60%, rgba(250,248,244,0))} }
   :root{--st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);--sl:env(safe-area-inset-left,0px);--sr:env(safe-area-inset-right,0px)}
   button,.chip,.cafe,.mini,.best{touch-action:manipulation}
   button{font-family:inherit}
@@ -334,6 +339,7 @@
 </head>
 <body class="v-cards">
 <div id="map"></div>
+<div class="topfade" aria-hidden="true"></div>
 <div class="panel">
   <header>
     <button class="grab" id="grab" aria-label="Show or hide the list"></button>
