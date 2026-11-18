@@ -758,11 +758,11 @@ geo.on('geolocate', pos => {
   updateLocButtons();
   if (!inside && first) $('#ohnote').textContent = '· you seem to be outside Antwerp';
   if (first && inside) requestTiles();
-  if (S.locPending && inside){ S.locMode = true; S.locPending = false; }
+  if (S.locPending){ S.locPending = false; S.locMode = inside; if (inside){ S.locFlying = true; map.once('moveend', () => { S.locFlying = false; updateLocButtons(); }); } }
   syncFab();
   scheduleList();
 });
-geo.on('error', () => { $('#nearme').classList.remove('on'); $('#count').innerHTML = '<span style="color:#c2410c">Your location is not available. Allow location access in your browser, or search instead.</span>'; });
+geo.on('error', () => { S.locPending = false; S.locMode = false; updateLocButtons(); $('#count').innerHTML = '<span style="color:#c2410c">Your location is not available. Allow location access in your browser, or search instead.</span>'; });
 geo.on('trackuserlocationend', () => { /* keep last known position for ranking */ });
 
 /* ---------- GPU shadow layer ---------- */
@@ -1531,23 +1531,27 @@ function syncFab(){
 if (window.ResizeObserver) new ResizeObserver(syncFab).observe($('.panel'));
 window.addEventListener('resize', syncFab);
 // Lit only after the visitor taps 📍 / re-center; switched off as soon as they drag the map away.
-S.locMode = false; S.locPending = false;
+S.locMode = false; S.locPending = false; S.locFlying = false;
 function updateLocButtons(){
-  if (S.locMode && !(S.me && S.me.inside && meInView())) S.locMode = false;
-  const on = !!(S.locMode && S.me && S.me.inside);
+  // while the map is still flying to you (or your location is still being found), keep it lit
+  if (S.locMode && !S.locFlying && !S.locPending && !(S.me && S.me.inside && meInView())) S.locMode = false;
+  const on = !!(S.locMode || S.locPending);
   $('#nearme').classList.toggle('on', on); $('#recenter').classList.toggle('on', on);
   $('#nearme').setAttribute('aria-pressed', on);
 }
 function goToMe(){
+  S.locMode = true;
   if (S.me && S.me.inside){
-    S.locMode = true; updateLocButtons();
+    S.locFlying = true; updateLocButtons();
+    const done = () => { if (!S.locFlying) return; S.locFlying = false; updateLocButtons(); };
+    map.once('moveend', done); setTimeout(done, 1500);   // fallback if the map was already there
     map.easeTo({ center:[S.me.lng, S.me.lat], zoom:Math.max(map.getZoom(), 16.5), duration:600 });
     if (popupId != null && $('.panel').classList.contains('placing')) closePlace();
-  } else { S.locPending = true; geo.trigger(); }
+  } else { S.locPending = true; updateLocButtons(); geo.trigger(); }
 }
 $('#recenter').addEventListener('click', goToMe);
 map.on('moveend', updateLocButtons);
-map.on('dragstart', () => { if (S.locMode){ S.locMode = false; updateLocButtons(); } });
+map.on('dragstart', () => { if (S.locMode || S.locPending){ S.locMode = false; S.locFlying = false; S.locPending = false; updateLocButtons(); } });
 
 /* ---------- slim time bar on phones: tap the time to show the slider ---------- */
 $('#clock').setAttribute('role', 'button'); $('#clock').setAttribute('tabindex', '0'); $('#clock').setAttribute('aria-label', 'Show the time slider');
