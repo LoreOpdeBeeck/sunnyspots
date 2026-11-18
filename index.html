@@ -1372,9 +1372,11 @@ function renderList(){
     } else
     html = (ranked.length || sunDown || !r.me ? '' : `<div class="hint">${cands.length ? 'Try another hour, move the map or change the filters.' : 'No places near you. Move the map to a busier street, or change the filters.'}</div>`);
   }
-  if (best !== lastBest){ $('#best').innerHTML = best; lastBest = best; }
+  let grew = false;
+  if (best !== lastBest){ $('#best').innerHTML = best; lastBest = best; grew = true; }
   const cn = q ? '' : cloudNote();
-  if (cn !== lastCloud){ $('#cloudnote').innerHTML = cn; lastCloud = cn; }
+  if (cn !== lastCloud){ $('#cloudnote').innerHTML = cn; lastCloud = cn; grew = true; }
+  if (grew && window.matchMedia('(max-width:700px)').matches && sheetState() === 'folded' && !$('.panel').classList.contains('dragging')) applySheetHeight('folded');
   const top = (S._ranked || []).find(o => o.c);
   const emptyView = !top && best.includes('best muted empty');
   const nRes = q ? document.querySelectorAll('#sresults .cafe').length : 0;
@@ -1570,7 +1572,14 @@ function snapHeights(){
   const panel = $('.panel'), sb = $('.searchbox').getBoundingClientRect();
   const bottom = panel.getBoundingClientRect().bottom;
   const full = Math.max(160, bottom - sb.bottom - 10);
-  return { mini:100, folded:Math.min(Math.round(window.innerHeight*0.42), full), full };
+  // half-open: 42% of the screen, but tall enough to show a whole message card (e.g. "No sunny spots in view" + Zoom out)
+  let folded = Math.round(window.innerHeight*0.42);
+  const msg = $('#best .best.empty') || $('#best .best.muted');
+  if (msg && !panel.classList.contains('placing')){
+    const need = msg.getBoundingClientRect().bottom - panel.getBoundingClientRect().top + panel.scrollTop + 28;
+    if (need > folded) folded = Math.ceil(need);
+  }
+  return { mini:100, folded:Math.min(folded, full), full };
 }
 function applySheetHeight(st){
   const panel = $('.panel');
