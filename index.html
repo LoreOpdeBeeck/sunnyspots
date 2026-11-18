@@ -1437,9 +1437,14 @@ $('#best').addEventListener('keydown', e => { if (e.key === 'Enter'){ const el =
 function focusCafe(id, zoomIn = true){
   const c = S.cafes[id]; if (!c) return;
   if (isPhone() && sheetState() !== 'folded') setSheetState('folded');
-  // keep the place clear of the panel and the time bar (on phones: in the map area above the sheet)
-  const ph = isPhone() ? { top:(($('.searchbox').getBoundingClientRect().bottom) || 120) + 20, bottom:window.innerHeight - $('.panel').getBoundingClientRect().top + 20 } : null;
-  const pad = ph ? { top:ph.top, bottom:Math.max(ph.bottom, window.innerHeight*0.5), left:20, right:20 } : { left:420, bottom:180, top:120, right:40 };
+  // phones: centre the place in the map you can actually see, between the search bar and the sheet.
+  // Use the sheet's height *after* it has folded (it may still be animating from full / minimised).
+  let pad = { left:420, bottom:180, top:120, right:40 };
+  if (isPhone()){
+    const sbBottom = $('.searchbox').getBoundingClientRect().bottom || 120;
+    const sheetTop = $('.panel').getBoundingClientRect().bottom - snapHeights().folded;
+    pad = { top:sbBottom, bottom:Math.max(0, window.innerHeight - sheetTop), left:0, right:0 };
+  }
   map.easeTo({ center:[c.lng, c.lat], zoom:zoomIn ? Math.max(map.getZoom(), 17.2) : map.getZoom(), duration:700, padding:pad });
   highlight(c);
   openPopup(c.id);
