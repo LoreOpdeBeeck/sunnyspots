@@ -1139,6 +1139,7 @@ function pushCafes(dataChanged){
     src.setData({ type:'FeatureCollection', features:S.cafes.filter(c => c.ready).map(c => ({ type:'Feature', id:c.id,
       geometry:{ type:'Point', coordinates:[c.lng, c.lat] }, properties:{ name:c.name, kind:c.kind, t:c.t ?? -1 } })) });
     lastStates = new Map();
+    if (S.hlId != null) placeHighlight();
   }
   for (const c of S.cafes){
     if (!c.ready) continue;
@@ -1156,14 +1157,15 @@ function updatePaint(){
   lastClearQ = q;
   const sunny = ['boolean', ['feature-state', 'sunny'], false];
   const closed = ['==', ['coalesce', ['feature-state', 'open'], -1], 0];
-  const hide = F.openOnly;
+  // "Open now" hides closed places, except the one you searched for / selected
+  const hide = F.openOnly, picked = ['==', ['id'], S.hlId ?? -1];
   map.setPaintProperty('cafe-dot', 'circle-color', ['case', closed, '#C9C4BA', sunny, mixHex('#E3D6BC', '#FFB020', q), '#7C8798']);
-  map.setPaintProperty('cafe-dot', 'circle-opacity', ['case', closed, hide ? 0 : 0.55, 1]);
-  map.setPaintProperty('cafe-dot', 'circle-stroke-opacity', ['case', closed, hide ? 0 : 0.6, 1]);
+  map.setPaintProperty('cafe-dot', 'circle-opacity', ['case', picked, 1, closed, hide ? 0 : 0.55, 1]);
+  map.setPaintProperty('cafe-dot', 'circle-stroke-opacity', ['case', picked, 1, closed, hide ? 0 : 0.6, 1]);
   map.setPaintProperty('cafe-glow', 'circle-opacity', ['case', closed, 0, sunny, 0.45*q, 0]);
   if (map.getLayer('cafe-sun-icon')) map.setPaintProperty('cafe-sun-icon', 'icon-opacity', ['case', closed, 0, sunny, 0.45 + 0.55*q, 0]);
   map.setPaintProperty('cafe-label', 'text-color', ['case', closed, '#9aa0aa', sunny, mixHex('#6b6f7a', '#5a3d00', q), '#6b7280']);
-  map.setPaintProperty('cafe-label', 'text-opacity', ['case', closed, hide ? 0 : 0.7, 1]);
+  map.setPaintProperty('cafe-label', 'text-opacity', ['case', picked, 1, closed, hide ? 0 : 0.7, 1]);
 }
 
 map.on('load', () => {
@@ -1185,12 +1187,14 @@ map.on('load', () => {
     paint:{ 'icon-opacity':0 } });
   // highlight ring for a searched / shared place
   map.addSource('hl', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
+  // stand-in dot while the buildings around a far-away place are still loading (the real dot appears after)
+  map.addLayer({ id:'hl-dot', type:'circle', source:'hl', filter:['==', ['get', 'dot'], true], paint:{ 'circle-radius':['interpolate',['linear'],['zoom'],14,3.5,18,6], 'circle-color':'#7C8798', 'circle-stroke-color':'#fff', 'circle-stroke-width':1.2 } });
   map.addLayer({ id:'hl-ring', type:'circle', source:'hl', paint:{ 'circle-radius':22, 'circle-color':'rgba(0,0,0,0)', 'circle-stroke-color':'#d9480f', 'circle-stroke-width':3, 'circle-stroke-opacity':0.9 } });
   map.addLayer({ id:'cafe-label', type:'symbol', source:'cafes', minzoom:16,
     layout:{ 'text-field':['get','name'], 'text-font':['Noto Sans Regular'], 'text-size':12, 'text-offset':[0,1.1], 'text-anchor':'top', 'text-optional':true },
     paint:{ 'text-color':'#6b7280', 'text-halo-color':'#fff', 'text-halo-width':1.5 } });
   map.on('click', 'cafe-dot', e => {
-    const f = e.features.find(f => { const c = S.cafes[f.id]; return c && passes(c); });
+    const f = e.features.find(f => { const c = S.cafes[f.id]; return c && (passes(c) || f.id === S.hlId); });
     if (f) focusCafe(f.id, false);
   });
   map.on('mouseenter', 'cafe-dot', () => map.getCanvas().style.cursor = 'pointer');
@@ -1444,11 +1448,17 @@ function focusCafe(id, zoomIn = true){
 let hlTimer = null;
 function highlight(c){
   const src = map.getSource('hl'); if (!src) return;
-  src.setData({ type:'FeatureCollection', features:[{ type:'Feature', geometry:{ type:'Point', coordinates:[c.lng, c.lat] }, properties:{} }] });
+  S.hlId = c.id; placeHighlight(); lastClearQ = -1; updatePaint();
   clearInterval(hlTimer); let k = 0;
   hlTimer = setInterval(() => { k++; map.setPaintProperty('hl-ring', 'circle-radius', 16 + 8*Math.abs(Math.sin(k/4))); if (k > 60){ clearInterval(hlTimer); map.setPaintProperty('hl-ring', 'circle-radius', 18); } }, 50);
 }
-function clearHighlight(){ clearInterval(hlTimer); const src = map.getSource('hl'); if (src) src.setData({ type:'FeatureCollection', features:[] }); }
+// the ring always sits on the place's current dot: once its buildings load, the dot moves from the
+// rough map position to the café's front door, and the ring (and popup) move with it
+function placeHighlight(){
+  const src = map.getSource('hl'), c = S.cafes[S.hlId]; if (!src || !c) return;
+  src.setData({ type:'FeatureCollection', features:[{ type:'Feature', geometry:{ type:'Point', coordinates:[c.lng, c.lat] }, properties:{ dot:!c.ready } }] });
+}
+function clearHighlight(){ clearInterval(hlTimer); S.hlId = null; lastClearQ = -1; updatePaint(); const src = map.getSource('hl'); if (src) src.setData({ type:'FeatureCollection', features:[] }); }
 
 /* ---------- shareable links: …/#cafe-kulminator ---------- */
 function slugOf(c){ return c.slug || (c.slug = 'cafe-' + (normalize(c.name).replace(/ /g, '-') || 'place')); }
@@ -1605,7 +1615,7 @@ function openPopup(id, refreshOnly){
     return;
   }
   const html = `<div class="kind">${kindIcon(c)} ${kindWord(c)}</div><h3>${esc(c.name)}</h3>${hoursHtml(c)}${extra}${body}${actions}${fine}`;
-  if (refreshOnly){ if (popup && popup.isOpen()) popup.setHTML(html); return; }
+  if (refreshOnly){ if (popup && popup.isOpen()) popup.setLngLat([c.lng, c.lat]).setHTML(html); return; }
   if (popup) popup.remove();
   popupId = id;
   popup = new maplibregl.Popup({ offset:14, maxWidth:'290px', anchor:'bottom' }).setLngLat([c.lng, c.lat]).setHTML(html).addTo(map);
