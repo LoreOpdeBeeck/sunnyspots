@@ -877,6 +877,7 @@ window.addEventListener('online', () => { if (!S.mapReady) location.reload(); })
 /* ---------- GPU shadow layer ---------- */
 const shadowLayer = {
   id:'sun-shadows', type:'custom', renderingMode:'2d',
+  look:{ shade:[0.10, 0.17, 0.46], shadeA:0.40, shadeMin:0.5, warm:[1.0, 0.78, 0.30], warmA:0.16 },
   onAdd(){ },
   init(gl){
     this.gl = gl;
@@ -974,11 +975,12 @@ const shadowLayer = {
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.tex);
     gl.uniform1i(this.loc.tex, 0);
     gl.uniform2f(this.loc.size, gl.drawingBufferWidth, gl.drawingBufferHeight);
-    gl.uniform1f(this.loc.alpha, night ? (sun.alt < -1 ? 0.55 : 0.4) : 0.40*(0.5 + 0.5*clearNow()));
+    gl.uniform1f(this.loc.alpha, night ? (sun.alt < -1 ? 0.55 : 0.4) : this.look.shadeA*(this.look.shadeMin + (1 - this.look.shadeMin)*clearNow()));
     gl.uniform1f(this.loc.night, night ? 1 : 0);
-    gl.uniform3f(this.loc.col, 0.10, 0.17, 0.46);   // cool blue: shade reads apart from the warm buildings
-    gl.uniform3f(this.loc.warm, 1.0, 0.78, 0.30);   // a hint of golden light on ground in the sun
-    gl.uniform1f(this.loc.walpha, night ? 0 : 0.16*clearNow());
+    const LK = this.look;
+    gl.uniform3f(this.loc.col, LK.shade[0], LK.shade[1], LK.shade[2]);   // cool blue: shade reads apart from the warm buildings
+    gl.uniform3f(this.loc.warm, LK.warm[0], LK.warm[1], LK.warm[2]);     // a hint of golden light on ground in the sun
+    gl.uniform1f(this.loc.walpha, night ? 0 : LK.warmA*clearNow());
     gl.bindBuffer(gl.ARRAY_BUFFER, this.quad);
     gl.enableVertexAttribArray(this.loc.xy);
     gl.vertexAttribPointer(this.loc.xy, 2, gl.FLOAT, false, 0, 0);
