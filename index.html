@@ -144,6 +144,7 @@
   .chip{height:36px;font:inherit;font-size:14px;font-weight:500;padding:0 14px;border-radius:18px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;white-space:nowrap}
   .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
   #count{font-size:13px;color:var(--muted);margin-top:12px}
+  #count:empty{display:none}
   #count b{color:var(--ink)}
 
   /* sky check: segmented control */
@@ -1372,6 +1373,7 @@ function renderList(){
     } else
     html = (ranked.length || sunDown || !r.me ? '' : `<div class="hint">${cands.length ? 'Try another hour, move the map or change the filters.' : 'No places near you. Move the map to a busier street, or change the filters.'}</div>`);
   }
+  if (best.includes('best muted empty')) $('#count').innerHTML = '';   // the card already says it
   let grew = false;
   if (best !== lastBest){ $('#best').innerHTML = best; lastBest = best; grew = true; }
   const cn = q ? '' : cloudNote();
@@ -1576,7 +1578,9 @@ function snapHeights(){
   let folded = Math.round(window.innerHeight*0.42);
   const msg = $('#best .best.empty') || $('#best .best.muted');
   if (msg && !panel.classList.contains('placing')){
-    const need = msg.getBoundingClientRect().bottom - panel.getBoundingClientRect().top + panel.scrollTop + 28;
+    // the "Sky right now" bar is pinned to the bottom of the sheet, so make room for it too
+    const sky = $('#skycheck'), skyH = sky && getComputedStyle(sky).position === 'sticky' ? sky.offsetHeight : 0;
+    const need = msg.getBoundingClientRect().bottom - panel.getBoundingClientRect().top + panel.scrollTop + skyH + 20;
     if (need > folded) folded = Math.ceil(need);
   }
   return { mini:100, folded:Math.min(folded, full), full };
