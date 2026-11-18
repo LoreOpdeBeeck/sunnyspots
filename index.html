@@ -247,7 +247,9 @@
     /* minimised: one line */
     .panel.sheet-min #best,.panel.sheet-min #cards,.panel.sheet-min .skycheck,.panel.sheet-min #count,.panel.sheet-min .sub{display:none}
     .panel.sheet-min{overflow:hidden}
-    .panel.sheet-min .peek{display:flex;align-items:center;gap:8px;margin:0 0 6px;padding:4px 0 4px 4px;font-size:15px;color:var(--muted);cursor:pointer;white-space:nowrap;overflow:hidden}
+    .panel.sheet-min .peek{display:block;margin:0 0 6px;padding:0 0 4px 4px;font-size:15px;color:var(--muted);cursor:pointer;white-space:nowrap;overflow:hidden}
+    .peek .pl{display:block;font-size:12px;font-weight:600;color:var(--sun-ink);margin:0 0 3px -4px}
+    .peek .pline{display:flex;align-items:center;gap:8px;padding:3px 0}
     .peek .pk{flex:none;font-size:16px}
     .peek .pt{flex:none}
     .panel.sheet-min .peek b{color:var(--ink);overflow:hidden;text-overflow:ellipsis}
@@ -1256,7 +1258,7 @@ function bestCard(r, ranked, cands){
   if (top){
     const c = top.c, open = isOpenNow(c);
     return `<div class="best" data-id="${c.id}" role="button" tabindex="0">
-      <div class="best-k">Best spot ${when}${r.me ? ' near you' : ' in this area'}</div>
+      <div class="best-k">Best spot ${when}${r.me ? ' near you' : ' in view'}</div>
       <div class="best-n">${esc(c.name)}</div>
       <div class="best-d">${kindIcon(c)} Sun until ${hhmm(sunnyUntil(c, S.idx))} · ${top.wt}${open === 1 ? ' · Open' : ''}${clearNow() < 0.4 ? ' · Cloudy' : ''}</div></div>`;
   }
@@ -1283,7 +1285,7 @@ function renderList(){
     const r = refPoint(), cands = candidates(r);
     const ranked = cands.map(c => ({ c, walk:walkMin(c, r), wt:walkText(c, r) })).map(o => ({ ...o, s:score(o.c, r, o.walk) }))
       .filter(o => o.s > -Infinity).sort((a, b) => b.s - a.s);
-    best = bestCard(r, ranked, cands); S._ranked = ranked;
+    best = bestCard(r, ranked, cands); S._ranked = ranked; S._nearMe = r.me;
     const sunDown = S.slots[S.idx].sun.alt < MIN_ALT;
     const noun = F.coffee && F.cafe ? 'places' : F.coffee ? 'coffee bars' : F.cafe ? 'cafés' : 'places';
     const where = r.me ? 'within 15 min walk' : map.getZoom() < TZOOM - 0.5 ? 'near the map centre' : 'in view';
@@ -1301,7 +1303,7 @@ function renderList(){
   }
   if (best !== lastBest){ $('#best').innerHTML = best; lastBest = best; }
   const top = (S._ranked || []).find(o => o.c);
-  const peek = top ? `<span class="pd"></span><span class="pk" title="${kindWord(top.c)}">${kindIcon(top.c)}</span><b>${esc(top.c.name)}</b><span class="pt">· ${kindWord(top.c)} · until ${hhmm(sunnyUntil(top.c, S.idx))}</span>` : (best ? 'No sunny spot right now · swipe up for more' : '');
+  const peek = top ? `<span class="pl">${S._nearMe ? 'Best spot near you' : 'Best spot in view'}</span><span class="pline"><span class="pd"></span><span class="pk" title="${kindWord(top.c)}">${kindIcon(top.c)}</span><b>${esc(top.c.name)}</b><span class="pt">· ${kindWord(top.c)} · until ${hhmm(sunnyUntil(top.c, S.idx))}</span></span>` : (best ? 'No sunny spot right now · swipe up for more' : '');
   if (peek !== lastPeek){ $('#peek').innerHTML = peek; lastPeek = peek; }
   const cards = (S._ranked || []).slice(1, 60).map(({ c, walk, wt, skel }) => skel ? `<div class="mini skel"><span class="ic"></span><div class="mt"><div class="sk w60"></div><div class="sk w80"></div><div class="sk w40"></div></div></div>` : `<div class="mini" data-id="${c.id}" role="button" tabindex="0"><span class="ic">${kindIcon(c)}</span><div class="mt"><div class="mn">${esc(c.name)}</div><div class="md">Sun until ${hhmm(sunnyUntil(c, S.idx))} · ${wt}</div><div class="mw">${kindWord(c)} · ${openShort(c)}</div></div></div>`).join('');
   if (cards !== lastCards){ $('#cards').innerHTML = cards; lastCards = cards; }
@@ -1383,7 +1385,7 @@ function snapHeights(){
   const panel = $('.panel'), sb = $('.searchbox').getBoundingClientRect();
   const bottom = panel.getBoundingClientRect().bottom;
   const full = Math.max(160, bottom - sb.bottom - 10);
-  return { mini:84, folded:Math.min(Math.round(window.innerHeight*0.42), full), full };
+  return { mini:100, folded:Math.min(Math.round(window.innerHeight*0.42), full), full };
 }
 function applySheetHeight(st){
   const panel = $('.panel');
