@@ -47,6 +47,7 @@
   .sheet-btn{display:none}
   .peek{display:none}
   .sresults{display:none}
+  .panel.q-active .legend, .panel.q-active .skycheck{display:none}
   .recenter{display:none}
   .sk{height:12px;border-radius:6px;margin:5px 0;background:linear-gradient(90deg,#efe7d9 25%,#f7f1e6 50%,#efe7d9 75%);background-size:200% 100%;animation:shimmer 1.2s infinite linear}
   .sk.big{height:20px;margin:8px 0}
@@ -114,6 +115,11 @@
   .field svg{position:absolute;left:14px;top:50%;margin-top:-9px;width:18px;height:18px;color:var(--faint);pointer-events:none}
   #search{width:100%;height:46px;font:inherit;font-size:16px;padding:0 14px 0 40px;border:0;border-radius:23px;background:var(--sand);color:var(--ink);outline:none;-webkit-appearance:none}
   #search::placeholder{color:var(--faint)}
+  #search::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+  .field.has-text #search{padding-right:46px}
+  .sclear{display:none;position:absolute;right:8px;top:50%;width:30px;height:30px;margin-top:-15px;border:0;border-radius:50%;background:#E6DDCD;color:var(--ink);cursor:pointer;place-items:center;padding:0}
+  .field .sclear svg{position:static;margin:0;width:14px;height:14px;color:inherit}
+  .field.has-text .sclear{display:grid}
   #search:focus{box-shadow:0 0 0 3px var(--sun-soft)}
   #nearme{height:46px;display:flex;align-items:center;gap:6px;padding:0 16px;border:0;border-radius:23px;background:var(--ink);color:#fff;font-size:15px;font-weight:600;cursor:pointer;white-space:nowrap}
   #nearme svg{width:17px;height:17px}
@@ -310,7 +316,8 @@
     <div class="searchbox">
       <div class="searchrow">
         <div class="field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-        <input id="search" type="search" placeholder="Search cafés and coffee bars" autocomplete="off" aria-label="Search cafés and coffee bars"></div>
+        <input id="search" type="search" placeholder="Search cafés and coffee bars" autocomplete="off" aria-label="Search cafés and coffee bars">
+        <button type="button" id="sclear" class="sclear" aria-label="Clear search" title="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></button></div>
         <button id="nearme" title="Use my location" aria-label="Near me"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21 3L3 10.5l7.5 2.9L13.4 21z"/></svg><span>Near me</span></button>
       </div>
       <div class="chips" role="group" aria-label="Filters">
@@ -1287,6 +1294,7 @@ function renderList(){
   const q = normalize($('#search').value);
   let html, best = '';
   S._ranked = [];
+  $('.panel').classList.toggle('q-active', !!q);
   if (q){
     const r = refPoint();
     const hits = S.cafes.filter(c => kindOn(c) && c.norm.includes(q))
@@ -1339,7 +1347,14 @@ function updateSearching(){ document.body.classList.toggle('searching', isPhone(
   queueMicrotask(() => { place(); if (window.matchMedia) window.matchMedia('(max-width:700px)').addEventListener('change', place); });
 })();
 $('#sresults').addEventListener('click', e => { const el = e.target.closest('.cafe'); if (!el) return; S._picked = true; document.body.classList.remove('searching'); $('#search').blur(); focusCafe(+el.dataset.id); });
-$('#search').addEventListener('input', () => { S._picked = false; updateSearching(); });
+$('#search').addEventListener('input', () => { S._picked = false; updateSearching(); updateClear(); });
+function updateClear(){ $('.field').classList.toggle('has-text', $('#search').value.length > 0); }
+// keep the clear button down (pointerdown) so tapping it doesn't blur the field first
+$('#sclear').addEventListener('pointerdown', e => e.preventDefault());
+$('#sclear').addEventListener('click', () => {
+  const inp = $('#search'); inp.value = ''; S._picked = false;
+  document.body.classList.remove('searching'); updateClear(); renderList(); inp.focus();
+});
 $('#search').addEventListener('focus', () => { S._picked = false; updateSearching(); });
 $('#search').addEventListener('blur', () => setTimeout(() => { if (!$('#search').value.trim()) document.body.classList.remove('searching'); }, 150));
 // keep track of the visible height (shrinks when the keyboard is open)
@@ -1468,7 +1483,7 @@ $('#search').addEventListener('search', () => { if (!$('#search').value) { docum
 let searchTimer = null;
 $('#search').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(renderList, 120); });
 $('#search').addEventListener('keydown', e => {
-  if (e.key === 'Escape'){ e.target.value = ''; document.body.classList.remove('searching'); e.target.blur(); renderList(); }
+  if (e.key === 'Escape'){ e.target.value = ''; document.body.classList.remove('searching'); e.target.blur(); updateClear(); renderList(); }
   if (e.key === 'Enter'){ const first = $('#list .cafe'); if (first) first.click(); }
 });
 $('#list').addEventListener('click', e => {
